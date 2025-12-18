@@ -1,0 +1,100 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    id: workspace
+    binary: workspace
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: 'Features'
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 'Bug Fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 'Performance'
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999
+
+brews:
+  - repository:
+      owner: jcleira
+      name: homebrew-tap
+    name: workspace
+    homepage: https://github.com/jcleira/workspace
+    description: "CLI tool for managing multiple project workspaces"
+    license: MIT
+    folder: Formula
+    dependencies:
+      - name: git
+        type: optional
+    install: |
+      bin.install "workspace"
+      
+      # Install shell completions
+      bash_completion.install "completions/workspace.bash" => "workspace"
+      zsh_completion.install "completions/workspace.zsh" => "_workspace"
+      fish_completion.install "completions/workspace.fish"
+    test: |
+      system "#{bin}/workspace", "--version"
+
+nfpms:
+  - id: packages
+    homepage: https://github.com/jcleira/workspace
+    description: "CLI tool for managing multiple project workspaces"
+    maintainer: Jose Carlos Leira <jcleira@gmail.com>
+    license: MIT
+    vendor: Workspace
+    formats:
+      - deb
+      - rpm
+      - apk
+    dependencies:
+      - git
+    recommends:
+      - zsh
+    bindir: /usr/local/bin

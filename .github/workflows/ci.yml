@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: 'go.mod'
+    
+    - name: Configure Git for private modules
+      run: git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Download dependencies
+      run: go mod download
+    
+    - name: Run tests
+      run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.txt
+        flags: unittests
+        name: codecov-umbrella
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: 'go.mod'
+
+    - name: Configure Git for private modules
+      run: git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v7
+      with:
+        version: v2.1.6
+
+    - name: Compile code
+      run: |
+        echo "Building all packages..."
+        go build -v ./...
+        echo "Build successful!"
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [linux, darwin]
+        arch: [amd64]
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: 'go.mod'
+    
+    - name: Configure Git for private modules
+      run: git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Download dependencies
+      run: go mod download
+    
+    - name: Build
+      env:
+        GOOS: ${{ matrix.os }}
+        GOARCH: ${{ matrix.arch }}
+      run: |
+        output_name='workspace-${{ matrix.os }}-${{ matrix.arch }}'
+        if [ "${{ matrix.os }}" = "windows" ]; then
+          output_name="${output_name}.exe"
+        fi
+        go build -o "${output_name}" -ldflags="-s -w" .
+        
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: workspace-${{ matrix.os }}-${{ matrix.arch }}
+        path: workspace-*
