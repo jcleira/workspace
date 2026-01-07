@@ -41,8 +41,7 @@ func deleteWorkspace(name string) {
 		return
 	}
 
-	commands.PrintWarning("This will delete the workspace and all its contents!")
-	commands.PrintInfo("Note: Associated branches will be deleted (branches with unpushed commits will be skipped)")
+	commands.PrintWarning("This will delete the workspace and all its contents, including branches!")
 
 	if !commands.PromptYesNo(fmt.Sprintf("Are you sure you want to delete 'workspace-%s'? (y/n): ", name)) {
 		commands.PrintInfo("Deletion canceled")
@@ -79,9 +78,7 @@ func displayDeleteResults(output *workspace.DeleteOutput) {
 	}
 
 	for _, b := range output.SkippedBranches {
-		if b.UnpushedCount > 0 {
-			commands.PrintWarning(fmt.Sprintf("Skipped branch '%s' in %s (%d unpushed commits)", b.BranchName, b.RepoName, b.UnpushedCount))
-		} else if b.Error != nil {
+		if b.Error != nil {
 			commands.PrintWarning(fmt.Sprintf("Failed to delete branch '%s' in %s: %v", b.BranchName, b.RepoName, b.Error))
 		}
 	}
