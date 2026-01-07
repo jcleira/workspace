@@ -271,15 +271,6 @@ func (s *Service) cleanupWorktrees(workspacePath string, deleteBranches bool, ou
 				BranchName: branchName,
 			}
 
-			hasUnpushed, err := git.HasUnpushedCommits(mainRepoPath, branchName)
-			if err == nil && hasUnpushed {
-				if count, err := git.GetUnpushedCommitCount(mainRepoPath, branchName); err == nil {
-					result.UnpushedCount = count
-				}
-				output.SkippedBranches = append(output.SkippedBranches, result)
-				continue
-			}
-
 			if err := git.DeleteBranch(mainRepoPath, branchName); err != nil {
 				result.Error = err
 				output.SkippedBranches = append(output.SkippedBranches, result)
