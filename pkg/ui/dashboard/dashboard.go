@@ -33,7 +33,9 @@ type DashboardModel struct {
 	focusedPane  Pane
 	showHelp     bool
 	showConfirm  bool
+	showDiff     bool
 	confirmModel ConfirmModel
+	diffView     DiffViewModel
 
 	workspaceList WorkspaceListModel
 	details       DetailsModel
@@ -65,6 +67,7 @@ func NewDashboard(wm *workspace.Manager, cm *config.ConfigManager) DashboardMode
 		workspaceList:    NewWorkspaceList(nil, keys),
 		details:          NewDetails(keys),
 		help:             NewHelp(keys),
+		diffView:         NewDiffView(keys),
 		workspaceManager: wm,
 		workspaceService: workspace.NewService(wm),
 		configManager:    cm,
@@ -163,6 +166,16 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
+		if m.showDiff {
+			if key.Matches(msg, m.keys.Cancel) || key.Matches(msg, m.keys.Quit) {
+				m.showDiff = false
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.diffView, cmd = m.diffView.Update(msg)
+			return m, cmd
+		}
+
 		switch {
 		case key.Matches(msg, m.keys.Quit):
 			m.quitting = true
@@ -185,13 +198,16 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keys.Select):
-			if m.focusedPane == PaneWorkspaceList {
+			switch m.focusedPane {
+			case PaneWorkspaceList:
 				ws := m.workspaceList.SelectedWorkspace()
 				if ws != nil {
 					m.selectedPath = ws.Path
 					m.quitting = true
 					return m, tea.Quit
 				}
+			case PaneDetails:
+				return m.handleDiffAction(false)
 			}
 			return m, nil
 
@@ -258,6 +274,15 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ErrorMsg:
 		m.statusMessage = msg.Error.Error()
 		return m, nil
+
+	case DiffLoadedMsg:
+		m.diffView = m.diffView.SetLoading(false)
+		if msg.Error != nil {
+			m.diffView = m.diffView.SetError(msg.Error)
+		} else {
+			m.diffView = m.diffView.SetContent(msg.Content, msg.RepoName, msg.Staged)
+		}
+		return m, nil
 	}
 
 	if m.focusedPane == PaneWorkspaceList {
@@ -304,6 +329,9 @@ func (m DashboardModel) updateLayout() DashboardModel {
 	m.help = m.help.SetSize(m.width, m.height)
 	if m.showConfirm {
 		m.confirmModel = m.confirmModel.SetSize(m.width, m.height)
+	}
+	if m.showDiff {
+		m.diffView = m.diffView.SetSize(m.width, m.height)
 	}
 
 	return m
@@ -364,7 +392,13 @@ func (m DashboardModel) handleDiffAction(staged bool) (tea.Model, tea.Cmd) {
 	}
 
 	repoPath := filepath.Join(ws.Path, ws.Projects[repoIdx])
-	return m, executeDiffAction(repoPath, staged)
+	repoName := ws.Projects[repoIdx]
+
+	m.showDiff = true
+	m.diffView = m.diffView.SetSize(m.width, m.height)
+	m.diffView = m.diffView.SetLoading(true)
+
+	return m, loadDiffContent(repoPath, repoName, staged)
 }
 
 func (m DashboardModel) executeConfirmedAction() tea.Cmd {
@@ -427,6 +461,10 @@ func (m DashboardModel) View() string {
 
 	if m.showConfirm {
 		return m.confirmModel.View()
+	}
+
+	if m.showDiff {
+		return m.diffView.View()
 	}
 
 	header := m.renderHeader()
@@ -514,10 +552,10 @@ func (m DashboardModel) renderFooter() string {
 	keys := []string{
 		helpKeyStyle.Render("↑/↓ j/k") + helpDescStyle.Render(" navigate"),
 		helpKeyStyle.Render("←/→ h/l") + helpDescStyle.Render(" panels"),
-		helpKeyStyle.Render("Enter") + helpDescStyle.Render(" switch"),
+		helpKeyStyle.Render("Enter") + helpDescStyle.Render(" select"),
 		helpKeyStyle.Render("f") + helpDescStyle.Render(" fetch"),
 		helpKeyStyle.Render("p") + helpDescStyle.Render(" pull"),
-		helpKeyStyle.Render("g") + helpDescStyle.Render(" diff"),
+		helpKeyStyle.Render("G") + helpDescStyle.Render(" staged diff"),
 		helpKeyStyle.Render("d") + helpDescStyle.Render(" delete"),
 		helpKeyStyle.Render("?") + helpDescStyle.Render(" help"),
 		helpKeyStyle.Render("q") + helpDescStyle.Render(" quit"),

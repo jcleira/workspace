@@ -2,7 +2,6 @@
 package dashboard
 
 import (
-	"os/exec"
 	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -74,30 +73,15 @@ func PullAction(repoPath, repoName string) tea.Cmd {
 	}
 }
 
-// executeDiffAction creates a command to show git diff using difftastic if available.
-func executeDiffAction(repoPath string, staged bool) tea.Cmd {
-	var cmd *exec.Cmd
-
-	_, err := exec.LookPath("difft")
-	hasDifft := err == nil
-
-	if hasDifft {
-		if staged {
-			cmd = exec.Command("git", "-c", "diff.external=difft", "diff", "--staged")
-		} else {
-			cmd = exec.Command("git", "-c", "diff.external=difft", "diff")
-		}
-	} else {
-		if staged {
-			cmd = exec.Command("git", "diff", "--staged")
-		} else {
-			cmd = exec.Command("git", "diff")
+// loadDiffContent loads diff content asynchronously for the embedded diff view.
+func loadDiffContent(repoPath, repoName string, staged bool) tea.Cmd {
+	return func() tea.Msg {
+		content, err := git.GetDiffWithColor(repoPath, staged)
+		return DiffLoadedMsg{
+			Content:  content,
+			RepoName: repoName,
+			Staged:   staged,
+			Error:    err,
 		}
 	}
-
-	cmd.Dir = repoPath
-
-	return tea.ExecProcess(cmd, func(err error) tea.Msg {
-		return nil
-	})
 }
