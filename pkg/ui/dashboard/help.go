@@ -77,7 +77,7 @@ func (m HelpModel) View() string {
 
 	b.WriteString(sectionStyle.Render("Actions"))
 	b.WriteString("\n")
-	b.WriteString(renderHelpLine(keyStyle, descStyle, "Enter", "Switch to selected workspace"))
+	b.WriteString(renderHelpLine(keyStyle, descStyle, "Enter", "Switch workspace / View diff"))
 	b.WriteString(renderHelpLine(keyStyle, descStyle, "f", "Fetch all repos in workspace"))
 	b.WriteString(renderHelpLine(keyStyle, descStyle, "p", "Pull all repos in workspace"))
 	b.WriteString(renderHelpLine(keyStyle, descStyle, "g", "View diff for selected repo"))
@@ -89,6 +89,14 @@ func (m HelpModel) View() string {
 	b.WriteString("\n")
 	b.WriteString(renderHelpLine(keyStyle, descStyle, "c", "Create new workspace"))
 	b.WriteString(renderHelpLine(keyStyle, descStyle, "d", "Delete workspace"))
+	b.WriteString("\n")
+
+	b.WriteString(sectionStyle.Render("Diff View"))
+	b.WriteString("\n")
+	b.WriteString(renderHelpLine(keyStyle, descStyle, "j / k", "Scroll up/down"))
+	b.WriteString(renderHelpLine(keyStyle, descStyle, "gg / G", "Go to top/bottom"))
+	b.WriteString(renderHelpLine(keyStyle, descStyle, "Ctrl+U / Ctrl+D", "Page up/down"))
+	b.WriteString(renderHelpLine(keyStyle, descStyle, "q / Esc", "Close diff view"))
 	b.WriteString("\n")
 
 	b.WriteString(sectionStyle.Render("Other"))

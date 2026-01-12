@@ -53,6 +53,14 @@ type ErrorMsg struct {
 	Context string
 }
 
+// DiffLoadedMsg is sent when diff content is loaded.
+type DiffLoadedMsg struct {
+	Content  string
+	RepoName string
+	Staged   bool
+	Error    error
+}
+
 // WorkspaceData contains information about a workspace.
 type WorkspaceData struct {
 	Name       string
