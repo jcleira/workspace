@@ -26,43 +26,12 @@ jobs:
       - name: Run tests
         run: go test -v ./...
 
-      - name: Build binaries
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          
-          # Linux AMD64
-          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o workspace-linux-amd64
-          tar czf workspace-linux-amd64.tar.gz workspace-linux-amd64
-          
-          # Linux ARM64
-          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X main.version=${VERSION}" -o workspace-linux-arm64
-          tar czf workspace-linux-arm64.tar.gz workspace-linux-arm64
-          
-          # macOS AMD64
-          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o workspace-darwin-amd64
-          tar czf workspace-darwin-amd64.tar.gz workspace-darwin-amd64
-          
-          # macOS ARM64 (Apple Silicon)
-          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X main.version=${VERSION}" -o workspace-darwin-arm64
-          tar czf workspace-darwin-arm64.tar.gz workspace-darwin-arm64
-          
-          # Windows AMD64
-          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o workspace-windows-amd64.exe
-          zip workspace-windows-amd64.zip workspace-windows-amd64.exe
-
-      - name: Create checksums
-        run: |
-          sha256sum workspace-*.tar.gz workspace-*.zip > checksums.txt
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
         with:
-          files: |
-            workspace-*.tar.gz
-            workspace-*.zip
-            checksums.txt
-          generate_release_notes: true
-          draft: false
-          prerelease: false
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

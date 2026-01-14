@@ -12,6 +12,16 @@ import (
 	_ "github.com/jcleira/workspace/cmd/switch"
 )
 
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
+func init() {
+	cmd.SetVersion(version, commit, date)
+}
+
 func main() {
 	if err := cmd.InitializeConfig(); err != nil {
 		log.Fatal(err)

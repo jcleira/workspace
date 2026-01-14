@@ -1,10 +1,13 @@
-# Workspace CLI
+# Workspace
+
+<img width="1797" height="1131" alt="workspace" src="https://github.com/user-attachments/assets/11b9a166-7aec-41b0-b23a-1ad4bbe911f5" />
 
 A command-line tool for managing isolated development workspaces with multiple git repositories. Designed for developers working on microservices, monorepos, or multiple related projects.
 
 ![Go Version](https://img.shields.io/badge/Go-1.23%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Platform](https://img.shields.io/badge/platform-macOS%20|%20Linux-lightgrey)
+![Platform](https://img.shields.io/badge/platform-macOS%20|%20Linux%20|%20Windows-lightgrey)
+[![AUR version](https://img.shields.io/aur/version/workspace-cli-bin)](https://aur.archlinux.org/packages/workspace-cli-bin)
 
 ## Features
 
@@ -20,7 +23,55 @@ A command-line tool for managing isolated development workspaces with multiple g
 
 ## Installation
 
-### Quick Install
+### Homebrew (macOS/Linux)
+
+```bash
+brew install jcleira/tap/workspace
+```
+
+### APT (Debian/Ubuntu)
+
+```bash
+curl -LO https://github.com/jcleira/workspace/releases/latest/download/workspace_$(curl -s https://api.github.com/repos/jcleira/workspace/releases/latest | grep tag_name | cut -d '"' -f 4 | tr -d 'v')_linux_amd64.deb
+sudo dpkg -i workspace_*.deb
+```
+
+### RPM (Fedora/RHEL)
+
+```bash
+curl -LO https://github.com/jcleira/workspace/releases/latest/download/workspace_$(curl -s https://api.github.com/repos/jcleira/workspace/releases/latest | grep tag_name | cut -d '"' -f 4 | tr -d 'v')_linux_amd64.rpm
+sudo dnf install ./workspace_*.rpm
+```
+
+### APK (Alpine)
+
+```bash
+curl -LO https://github.com/jcleira/workspace/releases/latest/download/workspace_$(curl -s https://api.github.com/repos/jcleira/workspace/releases/latest | grep tag_name | cut -d '"' -f 4 | tr -d 'v')_linux_amd64.apk
+sudo apk add --allow-untrusted workspace_*.apk
+```
+
+### Scoop (Windows)
+
+```powershell
+scoop bucket add jcleira https://github.com/jcleira/scoop-bucket
+scoop install workspace
+```
+
+### AUR (Arch Linux)
+
+```bash
+yay -S workspace-cli-bin
+# or
+paru -S workspace-cli-bin
+```
+
+### Go Install
+
+```bash
+go install github.com/jcleira/workspace@latest
+```
+
+### From Source
 
 ```bash
 git clone https://github.com/jcleira/workspace.git
@@ -29,12 +80,6 @@ make install
 
 # Or install to user directory
 make install-local
-```
-
-### Using Go Install
-
-```bash
-go install github.com/jcleira/workspace@latest
 ```
 
 ## Quick Start

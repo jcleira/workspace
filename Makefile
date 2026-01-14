@@ -13,7 +13,7 @@ GREEN=\033[0;32m
 BLUE=\033[0;34m
 NC=\033[0m # No Color
 
-.PHONY: all build clean test install uninstall fmt vet lint help
+.PHONY: all build clean test install uninstall fmt vet lint help completions
 
 ## help: Display this help message
 help:
@@ -67,7 +67,14 @@ clean:
 	@go clean
 	@rm -f ${BINARY_NAME}
 	@rm -rf dist/
+	@rm -rf completions/
 	@echo "${GREEN}✓${NC} Clean complete"
+
+## completions: Generate shell completion files
+completions:
+	@echo "Generating shell completions..."
+	@go run scripts/generate-completions.go
+	@echo "${GREEN}✓${NC} Completions generated in completions/"
 
 ## test: Run tests
 test:
