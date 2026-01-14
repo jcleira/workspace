@@ -28,7 +28,7 @@ func SetVersion(v, c, d string) {
 	version = v
 	commit = c
 	date = d
-	RootCmd.Version = version
+	RootCmd.Version = fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date)
 }
 
 var RootCmd = &cobra.Command{
