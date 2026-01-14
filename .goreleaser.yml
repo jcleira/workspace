@@ -4,6 +4,7 @@ before:
   hooks:
     - go mod tidy
     - go generate ./...
+    - go run scripts/generate-completions.go
 
 builds:
   - env:
@@ -11,9 +12,13 @@ builds:
     goos:
       - linux
       - darwin
+      - windows
     goarch:
       - amd64
       - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
     id: workspace
     binary: workspace
     ldflags:
@@ -31,6 +36,10 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
+    files:
+      - completions/*
+      - README.md
+      - LICENSE*
 
 checksum:
   name_template: 'checksums.txt'
@@ -64,23 +73,31 @@ brews:
   - repository:
       owner: jcleira
       name: homebrew-tap
+    directory: Formula
     name: workspace
     homepage: https://github.com/jcleira/workspace
     description: "CLI tool for managing multiple project workspaces"
     license: MIT
-    folder: Formula
     dependencies:
       - name: git
         type: optional
     install: |
       bin.install "workspace"
-      
-      # Install shell completions
+
       bash_completion.install "completions/workspace.bash" => "workspace"
       zsh_completion.install "completions/workspace.zsh" => "_workspace"
       fish_completion.install "completions/workspace.fish"
     test: |
       system "#{bin}/workspace", "--version"
+
+scoops:
+  - repository:
+      owner: jcleira
+      name: scoop-bucket
+    name: workspace
+    homepage: https://github.com/jcleira/workspace
+    description: "CLI tool for managing multiple project workspaces"
+    license: MIT
 
 nfpms:
   - id: packages
@@ -98,3 +115,10 @@ nfpms:
     recommends:
       - zsh
     bindir: /usr/local/bin
+    contents:
+      - src: completions/workspace.bash
+        dst: /usr/share/bash-completion/completions/workspace
+      - src: completions/workspace.zsh
+        dst: /usr/share/zsh/vendor-completions/_workspace
+      - src: completions/workspace.fish
+        dst: /usr/share/fish/vendor_completions.d/workspace.fish

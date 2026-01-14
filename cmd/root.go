@@ -17,7 +17,19 @@ var (
 	ConfigManager    *config.ConfigManager
 	WorkspaceManager *workspace.Manager
 	OutputPathOnly   bool
+
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
 )
+
+// SetVersion sets the version information for the CLI.
+func SetVersion(v, c, d string) {
+	version = v
+	commit = c
+	date = d
+	RootCmd.Version = version
+}
 
 var RootCmd = &cobra.Command{
 	Use:   "workspace",
@@ -44,6 +56,7 @@ func InitializeConfig() error {
 
 func init() {
 	RootCmd.Flags().BoolVar(&OutputPathOnly, "output-path-only", false, "Output only the selected workspace path (for shell integration)")
+	RootCmd.SetVersionTemplate("workspace {{.Version}}\n")
 }
 
 func runInteractiveWorkspaceSelector() {
