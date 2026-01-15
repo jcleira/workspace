@@ -73,6 +73,7 @@ brews:
   - repository:
       owner: jcleira
       name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Formula
     name: workspace
     homepage: https://github.com/jcleira/workspace
@@ -94,6 +95,7 @@ scoops:
   - repository:
       owner: jcleira
       name: scoop-bucket
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     name: workspace
     homepage: https://github.com/jcleira/workspace
     description: "CLI tool for managing multiple project workspaces"
