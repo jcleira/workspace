@@ -131,7 +131,7 @@ func (m DetailsModel) View() string {
 		return b.String()
 	}
 
-	maxVisible := m.height - 10
+	maxVisible := m.height - 8
 	if maxVisible < 3 {
 		maxVisible = 5
 	}

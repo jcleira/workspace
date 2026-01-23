@@ -225,7 +225,7 @@ func (m WorkspaceListModel) View() string {
 			nameStyle = selectedStyle
 		}
 
-		line := fmt.Sprintf("%s%-20s %s", cursor, nameStyle.Render(truncate(name, 20)), statusIndicator)
+		line := fmt.Sprintf("%s%s %s", cursor, statusIndicator, nameStyle.Render(truncate(name, 35)))
 		b.WriteString(line)
 		b.WriteString("\n")
 	}

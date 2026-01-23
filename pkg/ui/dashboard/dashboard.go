@@ -313,12 +313,12 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m DashboardModel) updateLayout() DashboardModel {
-	leftWidth := m.width / 3
+	leftWidth := m.width * 2 / 5
 	if leftWidth < 25 {
 		leftWidth = 25
 	}
-	if leftWidth > 35 {
-		leftWidth = 35
+	if leftWidth > 50 {
+		leftWidth = 50
 	}
 	rightWidth := m.width - leftWidth - 4
 
@@ -500,14 +500,14 @@ func (m DashboardModel) renderHeader() string {
 }
 
 func (m DashboardModel) renderContent() string {
-	contentHeight := m.height - 4
+	contentHeight := m.height - 6
 
-	leftWidth := m.width / 3
+	leftWidth := m.width * 2 / 5
 	if leftWidth < 25 {
 		leftWidth = 25
 	}
-	if leftWidth > 35 {
-		leftWidth = 35
+	if leftWidth > 50 {
+		leftWidth = 50
 	}
 	rightWidth := m.width - leftWidth - 4
 
