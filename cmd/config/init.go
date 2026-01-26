@@ -74,6 +74,6 @@ func initShellIntegration() {
 	}
 
 	fmt.Println()
-	fmt.Printf("Usage: %s\n", commands.SuccessStyle.Render("w"))
-	fmt.Printf("       %s\n", commands.SuccessStyle.Render("w <workspace-name>"))
+	fmt.Printf("Usage: %s  (select workspace → Claude Code → loop back)\n", commands.SuccessStyle.Render("w"))
+	fmt.Printf("       %s  (go to workspace → Claude Code → loop back)\n", commands.SuccessStyle.Render("w <name>"))
 }

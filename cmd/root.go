@@ -3,11 +3,12 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 
 	"github.com/spf13/cobra"
 
 	"github.com/jcleira/workspace/pkg/config"
-	"github.com/jcleira/workspace/pkg/shell"
 	"github.com/jcleira/workspace/pkg/ui/commands"
 	"github.com/jcleira/workspace/pkg/ui/dashboard"
 	"github.com/jcleira/workspace/pkg/workspace"
@@ -72,22 +73,78 @@ func runInteractiveWorkspaceSelector() {
 		return
 	}
 
-	selectedPath, err := dashboard.RunDashboard(WorkspaceManager, ConfigManager)
+	if OutputPathOnly {
+		runOutputPathOnlyMode()
+		return
+	}
+
+	if !isClaudeInstalled() {
+		commands.PrintError("'claude' command not found")
+		fmt.Println("Install: https://claude.ai/code")
+		return
+	}
+
+	for {
+		result, err := dashboard.RunDashboard(WorkspaceManager, ConfigManager)
+		if err != nil {
+			commands.PrintError(fmt.Sprintf("Dashboard error: %v", err))
+			return
+		}
+
+		if result.Path == "" {
+			return
+		}
+
+		if result.LaunchShell {
+			launchShell(result.Path)
+		} else {
+			launchClaude(result.Path)
+		}
+	}
+}
+
+func runOutputPathOnlyMode() {
+	result, err := dashboard.RunDashboard(WorkspaceManager, ConfigManager)
 	if err != nil {
 		commands.PrintError(fmt.Sprintf("Dashboard error: %v", err))
 		return
 	}
 
-	if selectedPath != "" {
-		if OutputPathOnly {
-			fmt.Println(selectedPath)
-		} else {
-			ws := workspace.Workspace{Path: selectedPath}
-			shell.NavigateToWorkspace(ws)
-		}
-	} else if OutputPathOnly {
+	if result.Path != "" {
+		fmt.Println(result.Path)
+	} else {
 		fmt.Println("quit")
 	}
+}
+
+func isClaudeInstalled() bool {
+	_, err := exec.LookPath("claude")
+	return err == nil
+}
+
+func launchClaude(workspacePath string) {
+	cmd := exec.Command("claude", "--continue")
+	cmd.Dir = workspacePath
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	_ = cmd.Run()
+}
+
+func launchShell(workspacePath string) {
+	shellPath := os.Getenv("SHELL")
+	if shellPath == "" {
+		shellPath = "/bin/sh"
+	}
+
+	cmd := exec.Command(shellPath)
+	cmd.Dir = workspacePath
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	_ = cmd.Run()
 }
 
 // WorkspaceCompletionFunc provides shell completion for workspace names.

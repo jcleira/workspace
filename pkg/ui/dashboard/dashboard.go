@@ -55,6 +55,7 @@ type DashboardModel struct {
 	statusMessage string
 
 	selectedPath string
+	launchShell  bool
 	quitting     bool
 }
 
@@ -208,6 +209,16 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case PaneDetails:
 				return m.handleDiffAction(false)
+			}
+			return m, nil
+
+		case key.Matches(msg, m.keys.Shell):
+			ws := m.workspaceList.SelectedWorkspace()
+			if ws != nil {
+				m.selectedPath = ws.Path
+				m.launchShell = true
+				m.quitting = true
+				return m, tea.Quit
 			}
 			return m, nil
 
@@ -552,7 +563,8 @@ func (m DashboardModel) renderFooter() string {
 	keys := []string{
 		helpKeyStyle.Render("↑/↓ j/k") + helpDescStyle.Render(" navigate"),
 		helpKeyStyle.Render("←/→ h/l") + helpDescStyle.Render(" panels"),
-		helpKeyStyle.Render("Enter") + helpDescStyle.Render(" select"),
+		helpKeyStyle.Render("Enter") + helpDescStyle.Render(" claude"),
+		helpKeyStyle.Render("s") + helpDescStyle.Render(" shell"),
 		helpKeyStyle.Render("f") + helpDescStyle.Render(" fetch"),
 		helpKeyStyle.Render("p") + helpDescStyle.Render(" pull"),
 		helpKeyStyle.Render("G") + helpDescStyle.Render(" staged diff"),
@@ -578,16 +590,30 @@ func (m DashboardModel) SelectedPath() string {
 	return m.selectedPath
 }
 
-// RunDashboard runs the dashboard and returns the selected workspace path.
-func RunDashboard(wm *workspace.Manager, cm *config.ConfigManager) (string, error) {
+// LaunchShell returns true if the user wants to launch a shell instead of Claude.
+func (m DashboardModel) LaunchShell() bool {
+	return m.launchShell
+}
+
+// DashboardResult contains the result of running the dashboard.
+type DashboardResult struct {
+	Path        string
+	LaunchShell bool
+}
+
+// RunDashboard runs the dashboard and returns the selected workspace path and action.
+func RunDashboard(wm *workspace.Manager, cm *config.ConfigManager) (DashboardResult, error) {
 	m := NewDashboard(wm, cm)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	finalModel, err := p.Run()
 	if err != nil {
-		return "", err
+		return DashboardResult{}, err
 	}
 
 	dm := finalModel.(DashboardModel)
-	return dm.SelectedPath(), nil
+	return DashboardResult{
+		Path:        dm.SelectedPath(),
+		LaunchShell: dm.LaunchShell(),
+	}, nil
 }

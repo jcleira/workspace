@@ -9,6 +9,7 @@ type KeyMap struct {
 	Left       key.Binding
 	Right      key.Binding
 	Select     key.Binding
+	Shell      key.Binding
 	Fetch      key.Binding
 	Pull       key.Binding
 	Delete     key.Binding
@@ -44,7 +45,11 @@ func DefaultKeyMap() KeyMap {
 		),
 		Select: key.NewBinding(
 			key.WithKeys("enter"),
-			key.WithHelp("enter", "switch workspace"),
+			key.WithHelp("enter", "claude"),
+		),
+		Shell: key.NewBinding(
+			key.WithKeys("s"),
+			key.WithHelp("s", "shell"),
 		),
 		Fetch: key.NewBinding(
 			key.WithKeys("f"),
