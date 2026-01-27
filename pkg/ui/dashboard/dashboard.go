@@ -157,10 +157,12 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.showConfirm {
 			var cmd tea.Cmd
 			m.confirmModel, cmd = m.confirmModel.Update(msg)
-			if m.confirmModel.IsDone() {
-				if m.confirmModel.IsConfirmed() {
-					cmd = m.executeConfirmedAction()
-				}
+			if m.confirmModel.IsConfirmed() && !m.confirmModel.IsDeleting() {
+				m.confirmModel = m.confirmModel.SetDeleting(true)
+				cmd = m.executeConfirmedAction()
+				return m, cmd
+			}
+			if m.confirmModel.IsCanceled() {
 				m.showConfirm = false
 			}
 			return m, cmd
@@ -261,6 +263,9 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ActionCompleteMsg:
+		if msg.Action == ActionDelete {
+			m.showConfirm = false
+		}
 		switch {
 		case msg.Output != "":
 			m.statusMessage = msg.Output
