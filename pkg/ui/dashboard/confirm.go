@@ -17,6 +17,7 @@ type ConfirmModel struct {
 	keys      KeyMap
 	confirmed bool
 	canceled  bool
+	deleting  bool
 }
 
 // NewConfirm creates a new confirmation dialog.
@@ -46,7 +47,21 @@ func (m ConfirmModel) IsCanceled() bool {
 
 // IsDone returns true if the dialog is complete.
 func (m ConfirmModel) IsDone() bool {
+	if m.deleting {
+		return false
+	}
 	return m.confirmed || m.canceled
+}
+
+// SetDeleting sets the deleting state.
+func (m ConfirmModel) SetDeleting(deleting bool) ConfirmModel {
+	m.deleting = deleting
+	return m
+}
+
+// IsDeleting returns true if a deletion is in progress.
+func (m ConfirmModel) IsDeleting() bool {
+	return m.deleting
 }
 
 // Init initializes the component.
@@ -56,6 +71,10 @@ func (m ConfirmModel) Init() tea.Cmd {
 
 // Update handles messages.
 func (m ConfirmModel) Update(msg tea.Msg) (ConfirmModel, tea.Cmd) {
+	if m.deleting {
+		return m, nil
+	}
+
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch {
 		case key.Matches(keyMsg, m.keys.Confirm):
@@ -84,6 +103,32 @@ func (m ConfirmModel) View() string {
 		Bold(true).
 		Foreground(warningColor)
 
+	if m.deleting {
+		b.WriteString(titleStyle.Render("Deleting Workspace"))
+		b.WriteString("\n\n")
+		b.WriteString("Deleting workspace and cleaning up branches...")
+		b.WriteString("\n\n")
+		if m.action.Workspace != "" {
+			fmt.Fprintf(&b, "Workspace: %s\n", m.action.Workspace)
+		}
+		b.WriteString("\n")
+		b.WriteString("Please wait...")
+
+		content := boxStyle.Render(b.String())
+
+		if m.width > 0 && m.height > 0 {
+			return lipgloss.Place(
+				m.width,
+				m.height,
+				lipgloss.Center,
+				lipgloss.Center,
+				content,
+			)
+		}
+
+		return content
+	}
+
 	descStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("252")).
 		MarginTop(1).
@@ -100,10 +145,10 @@ func (m ConfirmModel) View() string {
 	b.WriteString("\n\n")
 
 	if m.action.Workspace != "" {
-		b.WriteString(fmt.Sprintf("Workspace: %s\n", m.action.Workspace))
+		fmt.Fprintf(&b, "Workspace: %s\n", m.action.Workspace)
 	}
 	if m.action.Repo != "" {
-		b.WriteString(fmt.Sprintf("Repository: %s\n", m.action.Repo))
+		fmt.Fprintf(&b, "Repository: %s\n", m.action.Repo)
 	}
 
 	b.WriteString("\n")
