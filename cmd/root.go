@@ -3,6 +3,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/jcleira/workspace/pkg/shell"
 	"github.com/jcleira/workspace/pkg/ui/commands"
 	"github.com/jcleira/workspace/pkg/ui/dashboard"
+	"github.com/jcleira/workspace/pkg/ui/setup"
 	"github.com/jcleira/workspace/pkg/workspace"
 )
 
@@ -48,6 +50,16 @@ func InitializeConfig() error {
 		return fmt.Errorf("failed to initialize configuration: %w", err)
 	}
 
+	if !ConfigManager.IsInitialized() {
+		result, err := setup.RunSetupWizard(ConfigManager)
+		if err != nil {
+			return fmt.Errorf("setup wizard failed: %w", err)
+		}
+		if !result.Completed {
+			os.Exit(0)
+		}
+	}
+
 	cfg := ConfigManager.GetConfig()
 	WorkspaceManager = workspace.NewManager(cfg.WorkspacesDir, cfg.ReposDir, cfg.ClaudeDir)
 
@@ -60,33 +72,55 @@ func init() {
 }
 
 func runInteractiveWorkspaceSelector() {
-	workspaces, err := WorkspaceManager.GetWorkspaces()
-	if err != nil {
-		commands.PrintError(fmt.Sprintf("Failed to get workspaces: %v", err))
-		return
-	}
-
-	if len(workspaces) == 0 {
-		commands.PrintWarning("No workspaces found.")
-		fmt.Println("Create one with: workspace create <name>")
-		return
-	}
-
-	selectedPath, err := dashboard.RunDashboard(WorkspaceManager, ConfigManager)
-	if err != nil {
-		commands.PrintError(fmt.Sprintf("Dashboard error: %v", err))
-		return
-	}
-
-	if selectedPath != "" {
-		if OutputPathOnly {
-			fmt.Println(selectedPath)
-		} else {
-			ws := workspace.Workspace{Path: selectedPath}
-			shell.NavigateToWorkspace(ws)
+	for {
+		workspaces, err := WorkspaceManager.GetWorkspaces()
+		if err != nil {
+			commands.PrintError(fmt.Sprintf("Failed to get workspaces: %v", err))
+			return
 		}
-	} else if OutputPathOnly {
-		fmt.Println("quit")
+
+		if len(workspaces) == 0 {
+			commands.PrintWarning("No workspaces found.")
+			fmt.Println("Create one with: workspace create <name>")
+			return
+		}
+
+		result, err := dashboard.RunDashboard(WorkspaceManager, ConfigManager)
+		if err != nil {
+			commands.PrintError(fmt.Sprintf("Dashboard error: %v", err))
+			return
+		}
+
+		if result.OpenSetup {
+			cfg := ConfigManager.GetConfig()
+			setupResult, err := setup.RunSetupWizardWithDefaults(
+				ConfigManager,
+				cfg.ReposDir,
+				cfg.WorkspacesDir,
+				cfg.ClaudeDir,
+			)
+			if err != nil {
+				commands.PrintError(fmt.Sprintf("Setup wizard failed: %v", err))
+				return
+			}
+			if setupResult.Completed {
+				cfg = ConfigManager.GetConfig()
+				WorkspaceManager = workspace.NewManager(cfg.WorkspacesDir, cfg.ReposDir, cfg.ClaudeDir)
+			}
+			continue
+		}
+
+		if result.SelectedPath != "" {
+			if OutputPathOnly {
+				fmt.Println(result.SelectedPath)
+			} else {
+				ws := workspace.Workspace{Path: result.SelectedPath}
+				shell.NavigateToWorkspace(ws)
+			}
+		} else if OutputPathOnly {
+			fmt.Println("quit")
+		}
+		return
 	}
 }
 

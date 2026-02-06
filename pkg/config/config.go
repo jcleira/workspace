@@ -14,6 +14,7 @@ type Config struct {
 	ReposDir        string   `json:"repos_dir"`
 	ClaudeDir       string   `json:"claude_dir"`
 	IgnoredBranches []string `json:"ignored_branches,omitempty"`
+	Initialized     bool     `json:"initialized"`
 }
 
 // ConfigManager handles configuration operations
@@ -202,5 +203,51 @@ func (cm *ConfigManager) SetIgnoredBranches(patterns []string) error {
 // ClearIgnoredBranches clears all ignored branch patterns
 func (cm *ConfigManager) ClearIgnoredBranches() error {
 	cm.config.IgnoredBranches = []string{}
+	return cm.saveConfig()
+}
+
+// IsInitialized checks if the workspace has been initialized
+func (cm *ConfigManager) IsInitialized() bool {
+	if cm.config.Initialized {
+		return true
+	}
+	if _, err := os.Stat(cm.config.ReposDir); err == nil {
+		entries, err := os.ReadDir(cm.config.ReposDir)
+		if err == nil && len(entries) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// SetInitialized sets the initialized flag and saves the config
+func (cm *ConfigManager) SetInitialized(initialized bool) error {
+	cm.config.Initialized = initialized
+	return cm.saveConfig()
+}
+
+// UpdateConfig updates multiple config values and saves
+func (cm *ConfigManager) UpdateConfig(workspacesDir, reposDir, claudeDir string) error {
+	if workspacesDir != "" {
+		absDir, err := filepath.Abs(workspacesDir)
+		if err != nil {
+			return fmt.Errorf("failed to get absolute path for workspaces dir: %w", err)
+		}
+		cm.config.WorkspacesDir = absDir
+	}
+	if reposDir != "" {
+		absDir, err := filepath.Abs(reposDir)
+		if err != nil {
+			return fmt.Errorf("failed to get absolute path for repos dir: %w", err)
+		}
+		cm.config.ReposDir = absDir
+	}
+	if claudeDir != "" {
+		absDir, err := filepath.Abs(claudeDir)
+		if err != nil {
+			return fmt.Errorf("failed to get absolute path for claude dir: %w", err)
+		}
+		cm.config.ClaudeDir = absDir
+	}
 	return cm.saveConfig()
 }
