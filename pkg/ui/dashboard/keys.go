@@ -16,6 +16,7 @@ type KeyMap struct {
 	Refresh    key.Binding
 	Diff       key.Binding
 	DiffStaged key.Binding
+	Settings   key.Binding
 	Help       key.Binding
 	Quit       key.Binding
 	Filter     key.Binding
@@ -74,6 +75,10 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("G"),
 			key.WithHelp("G", "diff staged"),
 		),
+		Settings: key.NewBinding(
+			key.WithKeys("S"),
+			key.WithHelp("S", "settings"),
+		),
 		Help: key.NewBinding(
 			key.WithKeys("?"),
 			key.WithHelp("?", "help"),
@@ -109,6 +114,6 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 		{k.Select, k.Fetch, k.Pull},
 		{k.Diff, k.DiffStaged, k.Refresh},
 		{k.Delete, k.Create},
-		{k.Filter, k.Help, k.Quit},
+		{k.Settings, k.Filter, k.Help, k.Quit},
 	}
 }

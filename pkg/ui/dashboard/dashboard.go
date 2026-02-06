@@ -56,6 +56,7 @@ type DashboardModel struct {
 
 	selectedPath string
 	quitting     bool
+	openSetup    bool
 }
 
 // NewDashboard creates a new dashboard model.
@@ -181,6 +182,10 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keys.Quit):
 			m.quitting = true
+			return m, tea.Quit
+
+		case key.Matches(msg, m.keys.Settings):
+			m.openSetup = true
 			return m, tea.Quit
 
 		case key.Matches(msg, m.keys.Help):
@@ -560,8 +565,8 @@ func (m DashboardModel) renderFooter() string {
 		helpKeyStyle.Render("Enter") + helpDescStyle.Render(" select"),
 		helpKeyStyle.Render("f") + helpDescStyle.Render(" fetch"),
 		helpKeyStyle.Render("p") + helpDescStyle.Render(" pull"),
-		helpKeyStyle.Render("G") + helpDescStyle.Render(" staged diff"),
 		helpKeyStyle.Render("d") + helpDescStyle.Render(" delete"),
+		helpKeyStyle.Render("S") + helpDescStyle.Render(" settings"),
 		helpKeyStyle.Render("?") + helpDescStyle.Render(" help"),
 		helpKeyStyle.Render("q") + helpDescStyle.Render(" quit"),
 	}
@@ -583,16 +588,30 @@ func (m DashboardModel) SelectedPath() string {
 	return m.selectedPath
 }
 
-// RunDashboard runs the dashboard and returns the selected workspace path.
-func RunDashboard(wm *workspace.Manager, cm *config.ConfigManager) (string, error) {
+// OpenSetup returns true if the user requested to open the setup wizard.
+func (m DashboardModel) OpenSetup() bool {
+	return m.openSetup
+}
+
+// DashboardResult contains the result of running the dashboard.
+type DashboardResult struct {
+	SelectedPath string
+	OpenSetup    bool
+}
+
+// RunDashboard runs the dashboard and returns the result.
+func RunDashboard(wm *workspace.Manager, cm *config.ConfigManager) (DashboardResult, error) {
 	m := NewDashboard(wm, cm)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	finalModel, err := p.Run()
 	if err != nil {
-		return "", err
+		return DashboardResult{}, err
 	}
 
 	dm := finalModel.(DashboardModel)
-	return dm.SelectedPath(), nil
+	return DashboardResult{
+		SelectedPath: dm.SelectedPath(),
+		OpenSetup:    dm.OpenSetup(),
+	}, nil
 }
