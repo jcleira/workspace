@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // DetailsModel represents the right panel workspace details.
@@ -19,6 +21,8 @@ type DetailsModel struct {
 	focused   bool
 	keys      KeyMap
 	isLoading bool
+	viewport  viewport.Model
+	ready     bool
 }
 
 // NewDetails creates a new details model.
@@ -43,6 +47,7 @@ func (m DetailsModel) SetStatuses(statuses []RepoStatus) DetailsModel {
 	if m.cursor >= len(statuses) && len(statuses) > 0 {
 		m.cursor = len(statuses) - 1
 	}
+	m.updateViewportContent()
 	return m
 }
 
@@ -56,6 +61,20 @@ func (m DetailsModel) SetLoading(loading bool) DetailsModel {
 func (m DetailsModel) SetSize(width, height int) DetailsModel {
 	m.width = width
 	m.height = height
+
+	headerHeight := 6
+	footerHeight := 1
+	viewportHeight := height - headerHeight - footerHeight
+	if viewportHeight < 1 {
+		viewportHeight = 1
+	}
+
+	m.viewport = viewport.New(width-2, viewportHeight)
+	m.viewport.Style = lipgloss.NewStyle()
+	m.ready = true
+
+	m.updateViewportContent()
+
 	return m
 }
 
@@ -86,15 +105,21 @@ func (m DetailsModel) Update(msg tea.Msg) (DetailsModel, tea.Cmd) {
 		case key.Matches(keyMsg, m.keys.Up):
 			if m.cursor > 0 {
 				m.cursor--
+				m.updateViewportContent()
+				m.ensureCursorVisible()
 			}
 		case key.Matches(keyMsg, m.keys.Down):
 			if m.cursor < len(m.statuses)-1 {
 				m.cursor++
+				m.updateViewportContent()
+				m.ensureCursorVisible()
 			}
 		}
 	}
 
-	return m, nil
+	var cmd tea.Cmd
+	m.viewport, cmd = m.viewport.Update(msg)
+	return m, cmd
 }
 
 // View renders the details panel.
@@ -131,29 +156,14 @@ func (m DetailsModel) View() string {
 		return b.String()
 	}
 
-	maxVisible := m.height - 8
-	if maxVisible < 3 {
-		maxVisible = 5
+	if !m.ready {
+		b.WriteString(dimmedItemStyle.Render("Loading..."))
+		return b.String()
 	}
 
-	start := 0
-	if m.cursor >= maxVisible {
-		start = m.cursor - maxVisible + 1
-	}
-	end := start + maxVisible
-	if end > len(m.statuses) {
-		end = len(m.statuses)
-	}
-
-	for i := start; i < end; i++ {
-		status := m.statuses[i]
-		b.WriteString(m.renderRepoStatus(status, i == m.cursor))
-		b.WriteString("\n")
-	}
-
-	if len(m.statuses) > maxVisible {
-		b.WriteString(dimmedItemStyle.Render(fmt.Sprintf("... %d more repos", len(m.statuses)-maxVisible)))
-	}
+	b.WriteString(m.viewport.View())
+	b.WriteString("\n")
+	b.WriteString(m.renderScrollIndicator())
 
 	return b.String()
 }
@@ -216,6 +226,50 @@ func (m DetailsModel) renderRepoStatus(status RepoStatus, selected bool) string 
 	}
 
 	return b.String()
+}
+
+func (m *DetailsModel) updateViewportContent() {
+	if !m.ready || len(m.statuses) == 0 {
+		return
+	}
+
+	var b strings.Builder
+	for i := range m.statuses {
+		b.WriteString(m.renderRepoStatus(m.statuses[i], i == m.cursor))
+	}
+
+	m.viewport.SetContent(b.String())
+}
+
+func (m *DetailsModel) ensureCursorVisible() {
+	if !m.ready || len(m.statuses) == 0 {
+		return
+	}
+
+	linesPerRepo := 5
+	cursorLine := m.cursor * linesPerRepo
+	viewportTop := m.viewport.YOffset
+	viewportBottom := viewportTop + m.viewport.Height
+
+	if cursorLine < viewportTop {
+		m.viewport.SetYOffset(cursorLine)
+	} else if cursorLine+linesPerRepo > viewportBottom {
+		m.viewport.SetYOffset(cursorLine + linesPerRepo - m.viewport.Height)
+	}
+}
+
+func (m DetailsModel) renderScrollIndicator() string {
+	if len(m.statuses) == 0 {
+		return ""
+	}
+
+	totalLines := m.viewport.TotalLineCount()
+	if totalLines <= m.viewport.Height {
+		return dimmedItemStyle.Render(fmt.Sprintf("%d repos", len(m.statuses)))
+	}
+
+	scrollPercent := m.viewport.ScrollPercent() * 100
+	return dimmedItemStyle.Render(fmt.Sprintf("%d repos · %.0f%%", len(m.statuses), scrollPercent))
 }
 
 func shortenPath(path string) string {
