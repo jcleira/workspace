@@ -14,10 +14,14 @@ import (
 )
 
 var createCmd = &cobra.Command{
-	Use:   "create <name>",
-	Short: "Create a new workspace",
-	Long:  `Create a new workspace directory using all repositories in the repos directory.`,
-	Args:  cobra.ExactArgs(1),
+	Use:     "create <name>",
+	Aliases: []string{"c"},
+	Short:   "Create a new workspace",
+	Long:    `Create a new workspace directory using all repositories in the repos directory.`,
+	Example: `  workspace create myfeature
+  workspace create bugfix-123
+  workspace c quick-test`,
+	Args: cobra.ExactArgs(1),
 	Run: func(_ *cobra.Command, args []string) {
 		name := args[0]
 		createWorkspace(name)
@@ -32,26 +36,35 @@ func createWorkspace(name string) {
 	svc := workspace.NewService(cmd.WorkspaceManager)
 
 	if workspacePath, err := svc.GetPath(name); err == nil {
-		commands.PrintWarning(fmt.Sprintf("Workspace 'workspace-%s' already exists", name))
+		commands.PrintWarningf("Workspace 'workspace-%s' already exists", name)
 		if !commands.PromptYesNo("Do you want to use the existing workspace? (y/n): ") {
 			commands.PrintInfo("Creation canceled")
 			return
 		}
-		commands.PrintSuccess(fmt.Sprintf("Using existing workspace at: %s", workspacePath))
+		commands.PrintSuccessf("Using existing workspace at: %s", workspacePath)
 		ws := workspace.Workspace{Name: name, Path: workspacePath}
 		shell.NavigateToWorkspace(ws)
 		return
 	}
 
+	spinner := commands.NewSpinner(fmt.Sprintf("Creating workspace '%s'...", name))
+	spinner.Start()
+
 	input := workspace.CreateInput{
 		Name: name,
+		OnProgress: func(message string) {
+			spinner.UpdateMessage(message)
+		},
 	}
 
-	commands.PrintInfo(fmt.Sprintf("Creating workspace '%s'...", name))
-
 	output, err := svc.Create(input)
+	spinner.Stop()
+
 	if err != nil {
-		commands.PrintError(fmt.Sprintf("Failed to create workspace: %v", err))
+		commands.PrintErrorf("Failed to create workspace: %v", err)
+		if os.IsNotExist(err) || fmt.Sprintf("%v", err) == fmt.Sprintf("no repositories found in %s", cmd.WorkspaceManager.ReposDir) {
+			commands.PrintInfo("Run 'workspace config setup' to configure your directories")
+		}
 		os.Exit(1)
 	}
 
@@ -65,48 +78,52 @@ func createWorkspace(name string) {
 	shell.NavigateToWorkspace(ws)
 }
 
-func displayCreateResults(output *workspace.CreateOutput, name string) {
+func displayCreateResults(output workspace.CreateOutput, name string) {
 	if output.AlreadyExists {
-		commands.PrintWarning(fmt.Sprintf("Workspace 'workspace-%s' already exists", name))
+		commands.PrintWarningf("Workspace 'workspace-%s' already exists", name)
 	} else {
-		commands.PrintSuccess(fmt.Sprintf("Workspace created at: %s", output.WorkspacePath))
+		commands.PrintSuccessf("Created workspace at %s", output.WorkspacePath)
 	}
 
 	for _, sync := range output.SyncResults {
 		if sync.Error != nil {
-			commands.PrintWarning(fmt.Sprintf("Failed to sync %s: %v", sync.RepoName, sync.Error))
+			commands.PrintWarningf("Failed to sync %s: %v", sync.RepoName, sync.Error)
 		} else if sync.Fetched && sync.Pulled {
-			commands.PrintSuccess(fmt.Sprintf("Updated %s", sync.RepoName))
+			commands.PrintSuccessf("Synced %s", sync.RepoName)
 		}
 	}
 
 	for _, repo := range output.CreatedRepos {
 		if output.WorkspaceType == workspace.WorkspaceTypeWorktree {
 			if repo.WasExisting {
-				commands.PrintInfo(fmt.Sprintf("Checked out existing branch '%s' for %s", repo.BranchName, repo.Name))
+				commands.PrintInfof("Checked out existing branch '%s' for %s", repo.BranchName, repo.Name)
 			} else {
-				commands.PrintSuccess(fmt.Sprintf("Created worktree for %s (new branch: %s)", repo.Name, repo.BranchName))
+				commands.PrintSuccessf("Created worktree for %s (branch: %s)", repo.Name, repo.BranchName)
 			}
 		} else {
-			commands.PrintSuccess(fmt.Sprintf("Cloned %s", repo.Name))
+			commands.PrintSuccessf("Cloned %s", repo.Name)
 		}
 	}
 
 	for _, repo := range output.FailedRepos {
-		commands.PrintError(fmt.Sprintf("Failed to create %s: %v", repo.Name, repo.Error))
+		commands.PrintErrorf("Failed to create %s: %v", repo.Name, repo.Error)
 	}
 
-	if len(output.CreatedRepos) > 0 {
+	if len(output.CreatedRepos) == 0 && len(output.FailedRepos) == 0 {
+		commands.PrintWarning("No repositories found in repos directory")
+		commands.PrintInfo("Workspace created but contains no repos")
+		commands.PrintInfo("Add repositories to the repos directory and recreate")
+	} else if len(output.CreatedRepos) > 0 {
 		if output.WorkspaceType == workspace.WorkspaceTypeWorktree {
-			commands.PrintSuccess(fmt.Sprintf("Created %d worktrees!", len(output.CreatedRepos)))
+			commands.PrintSuccessf("Created %d worktree(s)", len(output.CreatedRepos))
 		} else {
-			commands.PrintSuccess(fmt.Sprintf("Cloned %d repositories!", len(output.CreatedRepos)))
+			commands.PrintSuccessf("Cloned %d repository/ies", len(output.CreatedRepos))
 		}
 	}
 
 	if len(output.FailedRepos) > 0 {
-		commands.PrintWarning(fmt.Sprintf("%d repositories failed", len(output.FailedRepos)))
+		commands.PrintWarningf("%d repository/ies failed", len(output.FailedRepos))
 	}
 
-	commands.PrintSuccess(fmt.Sprintf("Workspace 'workspace-%s' is ready!", name))
+	commands.PrintSuccessf("Workspace 'workspace-%s' is ready", name)
 }

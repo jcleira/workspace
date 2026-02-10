@@ -12,9 +12,12 @@ import (
 )
 
 var deleteCmd = &cobra.Command{
-	Use:               "delete <name>",
-	Short:             "Delete a workspace",
-	Long:              `Delete a workspace and all its contents, including associated git branches.`,
+	Use:     "delete <name>",
+	Aliases: []string{"d", "rm"},
+	Short:   "Delete a workspace",
+	Long:    `Delete a workspace and all its contents, including associated git branches.`,
+	Example: `  workspace delete myfeature
+  workspace rm bugfix-123`,
 	Args:              cobra.ExactArgs(1),
 	ValidArgsFunction: cmd.WorkspaceCompletionFunc,
 	Run: func(_ *cobra.Command, args []string) {
@@ -37,7 +40,7 @@ func deleteWorkspace(name string) {
 	svc := workspace.NewService(cmd.WorkspaceManager)
 
 	if _, err := svc.GetPath(name); err != nil {
-		commands.PrintError(fmt.Sprintf("Workspace 'workspace-%s' not found", name))
+		commands.PrintErrorf("Workspace 'workspace-%s' not found", name)
 		return
 	}
 
@@ -63,23 +66,23 @@ func deleteWorkspace(name string) {
 
 	defaultPath, err := svc.GetPath("default")
 	if err != nil {
-		commands.PrintError("Could not navigate to default workspace: " + err.Error())
+		commands.PrintErrorf("Could not navigate to default workspace: %v", err)
 		return
 	}
 
-	commands.PrintSuccess(fmt.Sprintf("Workspace 'workspace-%s' deleted successfully", name))
+	commands.PrintSuccessf("Workspace 'workspace-%s' deleted successfully", name)
 	commands.PrintInfo("Switching to default workspace")
 	fmt.Printf("cd %s\n", defaultPath)
 }
 
-func displayDeleteResults(output *workspace.DeleteOutput) {
+func displayDeleteResults(output workspace.DeleteOutput) {
 	for _, b := range output.DeletedBranches {
-		commands.PrintSuccess(fmt.Sprintf("Deleted branch '%s' in %s", b.BranchName, b.RepoName))
+		commands.PrintSuccessf("Deleted branch '%s' in %s", b.BranchName, b.RepoName)
 	}
 
 	for _, b := range output.SkippedBranches {
 		if b.Error != nil {
-			commands.PrintWarning(fmt.Sprintf("Failed to delete branch '%s' in %s: %v", b.BranchName, b.RepoName, b.Error))
+			commands.PrintWarningf("Failed to delete branch '%s' in %s: %v", b.BranchName, b.RepoName, b.Error)
 		}
 	}
 }

@@ -8,9 +8,10 @@ import (
 )
 
 var BranchCmd = &cobra.Command{
-	Use:   "branch",
-	Short: "Manage branches in main repositories",
-	Long:  `Manage branches in main repositories, including listing and cleaning up orphaned branches.`,
+	Use:     "branch",
+	Aliases: []string{"b"},
+	Short:   "Manage branches in main repositories",
+	Long:    `Manage branches in main repositories, including listing and cleaning up orphaned branches.`,
 }
 
 func init() {
