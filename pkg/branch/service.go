@@ -5,6 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/jcleira/workspace/pkg/git"
 	"github.com/jcleira/workspace/pkg/workspace"
@@ -66,102 +69,132 @@ func (s *Service) BuildWorkspaceMapping() (WorkspaceBranchMapping, error) {
 }
 
 // List returns all branches across repositories with workspace mapping.
-func (s *Service) List() (*ListOutput, error) {
+func (s *Service) List() (ListOutput, error) {
 	reposDir := s.workspaceManager.ReposDir
 	if _, err := os.Stat(reposDir); os.IsNotExist(err) {
-		return &ListOutput{}, nil
+		return ListOutput{}, nil
 	}
 
 	repos, err := os.ReadDir(reposDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read repositories: %w", err)
+		return ListOutput{}, fmt.Errorf("failed to read repositories: %w", err)
 	}
 
 	workspaceMapping, err := s.BuildWorkspaceMapping()
 	if err != nil {
-		return nil, fmt.Errorf("failed to build workspace mapping: %w", err)
+		return ListOutput{}, fmt.Errorf("failed to build workspace mapping: %w", err)
 	}
 
-	output := &ListOutput{
-		Repositories: make([]RepositoryBranches, 0),
+	output := ListOutput{
+		Repositories: make([]RepositoryBranches, 0, len(repos)),
 	}
+
+	var mu sync.Mutex
+	var g errgroup.Group
 
 	for _, repo := range repos {
 		if !repo.IsDir() {
 			continue
 		}
 
-		repoPath := filepath.Join(reposDir, repo.Name())
-		branches, err := git.GetAllBranches(repoPath)
-		if err != nil {
-			continue
-		}
+		repoName := repo.Name()
+		repoPath := filepath.Join(reposDir, repoName)
 
-		defaultBranch, err := git.GetDefaultBranch(repoPath)
-		if err != nil {
-			defaultBranch = ""
-		}
-
-		repoBranches := RepositoryBranches{
-			RepoName:      repo.Name(),
-			RepoPath:      repoPath,
-			DefaultBranch: defaultBranch,
-			Branches:      make([]BranchInfo, 0, len(branches)),
-		}
-
-		for _, branch := range branches {
-			output.TotalBranches++
-
-			info := BranchInfo{
-				Name:      branch,
-				RepoName:  repo.Name(),
-				RepoPath:  repoPath,
-				IsDefault: branch == defaultBranch,
-				IsIgnored: git.ShouldIgnoreBranch(branch, s.ignorePatterns),
+		g.Go(func() error {
+			branches, err := git.GetAllBranches(repoPath)
+			if err != nil {
+				return nil
 			}
 
-			if info.IsIgnored {
-				output.IgnoredCount++
+			defaultBranch, err := git.GetDefaultBranch(repoPath)
+			if err != nil {
+				defaultBranch = ""
 			}
 
-			key := fmt.Sprintf("%s:%s", repo.Name(), branch)
-			if wsName, ok := workspaceMapping[key]; ok {
-				info.WorkspaceName = wsName
-			} else if !info.IsDefault && !info.IsIgnored {
-				info.IsOrphaned = true
-				output.OrphanedCount++
+			repoBranches := RepositoryBranches{
+				RepoName:      repoName,
+				RepoPath:      repoPath,
+				DefaultBranch: defaultBranch,
+				Branches:      make([]BranchInfo, 0, len(branches)),
 			}
 
-			hasUnpushed, err := git.HasUnpushedCommits(repoPath, branch)
-			if err == nil && hasUnpushed {
-				info.HasUnpushed = true
-				if count, err := git.GetUnpushedCommitCount(repoPath, branch); err == nil {
-					info.UnpushedCount = count
-				}
+			var branchMu sync.Mutex
+			var branchGroup errgroup.Group
+
+			localTotalBranches := 0
+			localIgnoredCount := 0
+			localOrphanedCount := 0
+
+			for _, branch := range branches {
+				branchName := branch
+				branchGroup.Go(func() error {
+					info := BranchInfo{
+						Name:      branchName,
+						RepoName:  repoName,
+						RepoPath:  repoPath,
+						IsDefault: branchName == defaultBranch,
+						IsIgnored: git.ShouldIgnoreBranch(branchName, s.ignorePatterns),
+					}
+
+					key := fmt.Sprintf("%s:%s", repoName, branchName)
+					if wsName, ok := workspaceMapping[key]; ok {
+						info.WorkspaceName = wsName
+					} else if !info.IsDefault && !info.IsIgnored {
+						info.IsOrphaned = true
+					}
+
+					hasUnpushed, err := git.HasUnpushedCommits(repoPath, branchName)
+					if err == nil && hasUnpushed {
+						info.HasUnpushed = true
+						if count, err := git.GetUnpushedCommitCount(repoPath, branchName); err == nil {
+							info.UnpushedCount = count
+						}
+					}
+
+					if commitTime, commitBy, err := git.GetBranchLastCommit(repoPath, branchName); err == nil {
+						info.LastCommitTime = commitTime
+						info.LastCommitBy = commitBy
+					}
+
+					branchMu.Lock()
+					repoBranches.Branches = append(repoBranches.Branches, info)
+					localTotalBranches++
+					if info.IsIgnored {
+						localIgnoredCount++
+					}
+					if info.IsOrphaned {
+						localOrphanedCount++
+					}
+					branchMu.Unlock()
+					return nil
+				})
 			}
 
-			if commitTime, commitBy, err := git.GetBranchLastCommit(repoPath, branch); err == nil {
-				info.LastCommitTime = commitTime
-				info.LastCommitBy = commitBy
-			}
+			_ = branchGroup.Wait()
 
-			repoBranches.Branches = append(repoBranches.Branches, info)
-		}
+			mu.Lock()
+			output.Repositories = append(output.Repositories, repoBranches)
+			output.TotalBranches += localTotalBranches
+			output.IgnoredCount += localIgnoredCount
+			output.OrphanedCount += localOrphanedCount
+			mu.Unlock()
 
-		output.Repositories = append(output.Repositories, repoBranches)
+			return nil
+		})
 	}
 
+	_ = g.Wait()
 	return output, nil
 }
 
 // PlanCleanup identifies orphaned branches for cleanup.
-func (s *Service) PlanCleanup() (*CleanupPlan, error) {
+func (s *Service) PlanCleanup() (CleanupPlan, error) {
 	listOutput, err := s.List()
 	if err != nil {
-		return nil, err
+		return CleanupPlan{}, err
 	}
 
-	plan := &CleanupPlan{
+	plan := CleanupPlan{
 		OrphanedBranches: make([]OrphanedBranch, 0),
 		SkippedIgnored:   listOutput.IgnoredCount,
 	}
@@ -183,24 +216,22 @@ func (s *Service) PlanCleanup() (*CleanupPlan, error) {
 	return plan, nil
 }
 
-// ExecuteCleanup deletes the specified orphaned branches.
+// ExecuteCleanup deletes the specified orphaned branches in parallel.
 // skipBranches contains branch names to skip (format: "repo:branch").
-func (s *Service) ExecuteCleanup(plan *CleanupPlan, skipBranches []string) (*CleanupResult, error) {
+func (s *Service) ExecuteCleanup(plan CleanupPlan, skipBranches []string) (CleanupResult, error) {
 	skipSet := make(map[string]bool)
 	for _, skip := range skipBranches {
 		skipSet[skip] = true
 	}
 
-	result := &CleanupResult{
-		Deleted: make([]BranchDeleteResult, 0),
-		Skipped: make([]BranchDeleteResult, 0),
-		Failed:  make([]BranchDeleteResult, 0),
-	}
+	var deleted, skipped, failed []BranchDeleteResult
+	var mu sync.Mutex
+	var g errgroup.Group
 
 	for _, ob := range plan.OrphanedBranches {
 		key := fmt.Sprintf("%s:%s", ob.RepoName, ob.BranchName)
 		if skipSet[key] {
-			result.Skipped = append(result.Skipped, BranchDeleteResult{
+			skipped = append(skipped, BranchDeleteResult{
 				RepoName:   ob.RepoName,
 				BranchName: ob.BranchName,
 				Reason:     "user skipped",
@@ -208,21 +239,33 @@ func (s *Service) ExecuteCleanup(plan *CleanupPlan, skipBranches []string) (*Cle
 			continue
 		}
 
-		if err := git.DeleteBranch(ob.RepoPath, ob.BranchName); err != nil {
-			result.Failed = append(result.Failed, BranchDeleteResult{
-				RepoName:   ob.RepoName,
-				BranchName: ob.BranchName,
-				Error:      err,
-			})
-		} else {
-			result.Deleted = append(result.Deleted, BranchDeleteResult{
-				RepoName:   ob.RepoName,
-				BranchName: ob.BranchName,
-			})
-		}
+		g.Go(func() error {
+			if err := git.DeleteBranch(ob.RepoPath, ob.BranchName); err != nil {
+				mu.Lock()
+				failed = append(failed, BranchDeleteResult{
+					RepoName:   ob.RepoName,
+					BranchName: ob.BranchName,
+					Error:      err,
+				})
+				mu.Unlock()
+			} else {
+				mu.Lock()
+				deleted = append(deleted, BranchDeleteResult{
+					RepoName:   ob.RepoName,
+					BranchName: ob.BranchName,
+				})
+				mu.Unlock()
+			}
+			return nil
+		})
 	}
 
-	return result, nil
+	_ = g.Wait()
+	return CleanupResult{
+		Deleted: deleted,
+		Skipped: skipped,
+		Failed:  failed,
+	}, nil
 }
 
 // DeleteBranch deletes a single branch from a repository.

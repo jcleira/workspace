@@ -22,10 +22,10 @@ var ignoreAddCmd = &cobra.Command{
 	Run: func(_ *cobra.Command, args []string) {
 		pattern := args[0]
 		if err := cmd.ConfigManager.AddIgnoredBranch(pattern); err != nil {
-			commands.PrintError(fmt.Sprintf("Failed to add pattern: %v", err))
+			commands.PrintErrorf("Failed to add pattern: %v", err)
 			return
 		}
-		commands.PrintSuccess(fmt.Sprintf("Added pattern '%s' to ignore list", pattern))
+		commands.PrintSuccessf("Added pattern '%s' to ignore list", pattern)
 	},
 }
 
@@ -36,10 +36,10 @@ var ignoreRemoveCmd = &cobra.Command{
 	Run: func(_ *cobra.Command, args []string) {
 		pattern := args[0]
 		if err := cmd.ConfigManager.RemoveIgnoredBranch(pattern); err != nil {
-			commands.PrintError(fmt.Sprintf("Failed to remove pattern: %v", err))
+			commands.PrintErrorf("Failed to remove pattern: %v", err)
 			return
 		}
-		commands.PrintSuccess(fmt.Sprintf("Removed pattern '%s' from ignore list", pattern))
+		commands.PrintSuccessf("Removed pattern '%s' from ignore list", pattern)
 	},
 }
 
@@ -65,7 +65,7 @@ var ignoreClearCmd = &cobra.Command{
 	Short: "Clear all ignored branch patterns",
 	Run: func(_ *cobra.Command, _ []string) {
 		if err := cmd.ConfigManager.ClearIgnoredBranches(); err != nil {
-			commands.PrintError(fmt.Sprintf("Failed to clear ignored patterns: %v", err))
+			commands.PrintErrorf("Failed to clear ignored patterns: %v", err)
 			return
 		}
 		commands.PrintSuccess("Cleared all ignored branch patterns")

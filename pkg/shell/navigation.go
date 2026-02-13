@@ -12,7 +12,7 @@ import (
 
 // NavigateToWorkspace changes to the workspace directory and starts a new shell.
 func NavigateToWorkspace(ws workspace.Workspace) {
-	commands.PrintSuccess(fmt.Sprintf("Navigating to: %s", filepath.Base(ws.Path)))
+	commands.PrintSuccessf("Navigating to: %s", filepath.Base(ws.Path))
 
 	shell := os.Getenv("SHELL")
 	if shell == "" {
@@ -20,13 +20,13 @@ func NavigateToWorkspace(ws workspace.Workspace) {
 	}
 
 	if err := os.Chdir(ws.Path); err != nil {
-		commands.PrintError(fmt.Sprintf("Failed to change directory: %v", err))
+		commands.PrintErrorf("Failed to change directory: %v", err)
 		fmt.Printf("cd %s\n", ws.Path)
 		return
 	}
 
 	if pwd, err := os.Getwd(); err == nil {
-		commands.PrintInfo(fmt.Sprintf("Now in: %s", pwd))
+		commands.PrintInfof("Now in: %s", pwd)
 	}
 
 	fmt.Println()
@@ -44,6 +44,6 @@ func NavigateToWorkspace(ws workspace.Workspace) {
 	)
 
 	if err := cmd.Run(); err != nil {
-		commands.PrintError(fmt.Sprintf("Failed to start shell: %v", err))
+		commands.PrintErrorf("Failed to start shell: %v", err)
 	}
 }

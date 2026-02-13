@@ -46,11 +46,11 @@ func initShellIntegration() {
 		functionContent = shell.GenerateFishFunction()
 
 		if err := os.MkdirAll(fishConfigDir, 0o755); err != nil {
-			commands.PrintError(fmt.Sprintf("Failed to create fish config directory: %v", err))
+			commands.PrintErrorf("Failed to create fish config directory: %v", err)
 			return
 		}
 	default:
-		commands.PrintError(fmt.Sprintf("Unsupported shell: %s", shellName))
+		commands.PrintErrorf("Unsupported shell: %s", shellName)
 		fmt.Println("Supported shells: bash, zsh, fish")
 		return
 	}
@@ -61,16 +61,16 @@ func initShellIntegration() {
 
 	if shellName == "fish" {
 		if err := os.WriteFile(rcFile, []byte(functionContent), 0o644); err != nil {
-			commands.PrintError(fmt.Sprintf("Failed to write fish function: %v", err))
+			commands.PrintErrorf("Failed to write fish function: %v", err)
 			return
 		}
-		commands.PrintSuccess(fmt.Sprintf("Fish function written to: %s", rcFile))
+		commands.PrintSuccessf("Fish function written to: %s", rcFile)
 		commands.PrintInfo("Restart your shell or run 'source ~/.config/fish/config.fish' to use the 'w' command")
 	} else {
 		fmt.Printf("Add this function to your %s:\n\n", commands.InfoStyle.Render(rcFile))
 		fmt.Println(functionContent)
 		fmt.Println()
-		commands.PrintInfo("After adding, restart your shell or run 'source " + rcFile + "' to use the 'w' command")
+		commands.PrintInfof("After adding, restart your shell or run 'source %s' to use the 'w' command", rcFile)
 	}
 
 	fmt.Println()

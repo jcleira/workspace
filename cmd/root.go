@@ -75,7 +75,7 @@ func runInteractiveWorkspaceSelector() {
 	for {
 		workspaces, err := WorkspaceManager.GetWorkspaces()
 		if err != nil {
-			commands.PrintError(fmt.Sprintf("Failed to get workspaces: %v", err))
+			commands.PrintErrorf("Failed to get workspaces: %v", err)
 			return
 		}
 
@@ -87,7 +87,7 @@ func runInteractiveWorkspaceSelector() {
 
 		result, err := dashboard.RunDashboard(WorkspaceManager, ConfigManager)
 		if err != nil {
-			commands.PrintError(fmt.Sprintf("Dashboard error: %v", err))
+			commands.PrintErrorf("Dashboard error: %v", err)
 			return
 		}
 
@@ -100,7 +100,7 @@ func runInteractiveWorkspaceSelector() {
 				cfg.ClaudeDir,
 			)
 			if err != nil {
-				commands.PrintError(fmt.Sprintf("Setup wizard failed: %v", err))
+				commands.PrintErrorf("Setup wizard failed: %v", err)
 				return
 			}
 			if setupResult.Completed {

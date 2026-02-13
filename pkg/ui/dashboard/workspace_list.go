@@ -13,6 +13,7 @@ type WorkspaceListModel struct {
 	workspaces   []WorkspaceData
 	statuses     map[string][]RepoStatus
 	cursor       int
+	scrollOffset int
 	width        int
 	height       int
 	focused      bool
@@ -44,6 +45,7 @@ func (m WorkspaceListModel) SetWorkspaces(workspaces []WorkspaceData) WorkspaceL
 	if m.cursor >= len(m.filteredIdxs) && len(m.filteredIdxs) > 0 {
 		m.cursor = len(m.filteredIdxs) - 1
 	}
+	m.scrollOffset = 0
 	return m
 }
 
@@ -90,6 +92,7 @@ func (m *WorkspaceListModel) resetFilter() {
 	}
 	m.filterText = ""
 	m.filterMode = false
+	m.scrollOffset = 0
 }
 
 func (m *WorkspaceListModel) applyFilter() {
@@ -109,6 +112,7 @@ func (m *WorkspaceListModel) applyFilter() {
 	if m.cursor >= len(m.filteredIdxs) && len(m.filteredIdxs) > 0 {
 		m.cursor = len(m.filteredIdxs) - 1
 	}
+	m.scrollOffset = 0
 }
 
 // Init initializes the component.
@@ -150,14 +154,22 @@ func (m WorkspaceListModel) Update(msg tea.Msg) (WorkspaceListModel, tea.Cmd) {
 		return m, nil
 	}
 
+	maxVisible := m.maxVisibleItems()
+
 	switch {
 	case key.Matches(keyMsg, m.keys.Up):
 		if m.cursor > 0 {
 			m.cursor--
+			if m.cursor < m.scrollOffset {
+				m.scrollOffset = m.cursor
+			}
 		}
 	case key.Matches(keyMsg, m.keys.Down):
 		if m.cursor < len(m.filteredIdxs)-1 {
 			m.cursor++
+			if m.cursor >= m.scrollOffset+maxVisible {
+				m.scrollOffset = m.cursor - maxVisible + 1
+			}
 		}
 	case key.Matches(keyMsg, m.keys.Filter):
 		m.filterMode = true
@@ -165,6 +177,17 @@ func (m WorkspaceListModel) Update(msg tea.Msg) (WorkspaceListModel, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m WorkspaceListModel) maxVisibleItems() int {
+	maxVisible := m.height - 4
+	if m.scrollOffset > 0 {
+		maxVisible--
+	}
+	if maxVisible < 1 {
+		maxVisible = 5
+	}
+	return maxVisible
 }
 
 // View renders the workspace list.
@@ -185,18 +208,17 @@ func (m WorkspaceListModel) View() string {
 		return b.String()
 	}
 
-	maxVisible := m.height - 4
-	if maxVisible < 1 {
-		maxVisible = 10
-	}
+	maxVisible := m.maxVisibleItems()
 
-	start := 0
-	if m.cursor >= maxVisible {
-		start = m.cursor - maxVisible + 1
-	}
+	start := m.scrollOffset
 	end := start + maxVisible
 	if end > len(m.filteredIdxs) {
 		end = len(m.filteredIdxs)
+	}
+
+	if start > 0 {
+		b.WriteString(dimmedItemStyle.Render(fmt.Sprintf("  ... %d above", start)))
+		b.WriteString("\n")
 	}
 
 	for i := start; i < end; i++ {
@@ -230,8 +252,9 @@ func (m WorkspaceListModel) View() string {
 		b.WriteString("\n")
 	}
 
-	if len(m.filteredIdxs) > maxVisible {
-		b.WriteString(dimmedItemStyle.Render(fmt.Sprintf("  ... %d more", len(m.filteredIdxs)-maxVisible)))
+	remaining := len(m.filteredIdxs) - end
+	if remaining > 0 {
+		b.WriteString(dimmedItemStyle.Render(fmt.Sprintf("  ... %d more", remaining)))
 	}
 
 	return b.String()

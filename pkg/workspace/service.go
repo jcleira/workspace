@@ -1,9 +1,14 @@
 package workspace
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
+
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 
 	"github.com/jcleira/workspace/pkg/git"
 )
@@ -20,56 +25,75 @@ func NewService(manager *Manager) *Service {
 	}
 }
 
-// SyncMainRepos fetches and pulls all main repositories.
+// SyncMainRepos fetches and pulls all main repositories in parallel.
 func (s *Service) SyncMainRepos(repos []RepositorySpec) []SyncResult {
+	var mu sync.Mutex
 	results := make([]SyncResult, 0, len(repos))
 
+	var g errgroup.Group
+
 	for _, repo := range repos {
-		mainRepoPath := filepath.Join(s.manager.ReposDir, repo.Name)
+		g.Go(func() error {
+			mainRepoPath := filepath.Join(s.manager.ReposDir, repo.Name)
 
-		result := SyncResult{
-			RepoName: repo.Name,
-			RepoPath: mainRepoPath,
-		}
+			result := SyncResult{
+				RepoName: repo.Name,
+				RepoPath: mainRepoPath,
+			}
 
-		if _, err := os.Stat(mainRepoPath); os.IsNotExist(err) {
-			continue
-		}
+			if _, err := os.Stat(mainRepoPath); os.IsNotExist(err) {
+				return nil
+			}
 
-		if err := git.FetchRemote(mainRepoPath); err != nil {
-			result.Error = fmt.Errorf("failed to fetch: %w", err)
+			if err := git.FetchRemote(mainRepoPath); err != nil {
+				result.Error = fmt.Errorf("failed to fetch: %w", err)
+				mu.Lock()
+				results = append(results, result)
+				mu.Unlock()
+				return nil
+			}
+			result.Fetched = true
+
+			if err := git.PullDefaultBranch(mainRepoPath); err != nil {
+				result.Error = fmt.Errorf("failed to pull: %w", err)
+				mu.Lock()
+				results = append(results, result)
+				mu.Unlock()
+				return nil
+			}
+			result.Pulled = true
+
+			mu.Lock()
 			results = append(results, result)
-			continue
-		}
-		result.Fetched = true
-
-		if err := git.PullDefaultBranch(mainRepoPath); err != nil {
-			result.Error = fmt.Errorf("failed to pull: %w", err)
-			results = append(results, result)
-			continue
-		}
-		result.Pulled = true
-
-		results = append(results, result)
+			mu.Unlock()
+			return nil
+		})
 	}
 
+	_ = g.Wait()
 	return results
 }
 
+func (s *Service) reportProgress(input CreateInput, message string) {
+	if input.OnProgress != nil {
+		input.OnProgress(message)
+	}
+}
+
 // Create creates a new workspace with repositories.
-func (s *Service) Create(input CreateInput) (*CreateOutput, error) {
+func (s *Service) Create(input CreateInput) (CreateOutput, error) {
 	repos, err := DiscoverMainRepos(s.manager.ReposDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to discover repositories: %w", err)
+		return CreateOutput{}, fmt.Errorf("failed to discover repositories: %w", err)
 	}
 
 	if len(repos) == 0 {
-		return nil, fmt.Errorf("no repositories found in %s", s.manager.ReposDir)
+		return CreateOutput{}, fmt.Errorf("no repositories found in %s", s.manager.ReposDir)
 	}
 
 	useWorktrees := input.Name != "default"
 
-	output := &CreateOutput{
+	output := CreateOutput{
 		WorkspaceType: WorkspaceTypeClone,
 		CreatedRepos:  make([]RepoResult, 0),
 		FailedRepos:   make([]RepoResult, 0),
@@ -78,38 +102,59 @@ func (s *Service) Create(input CreateInput) (*CreateOutput, error) {
 
 	if useWorktrees {
 		output.WorkspaceType = WorkspaceTypeWorktree
+		s.reportProgress(input, "Syncing main repositories...")
 		output.SyncResults = s.SyncMainRepos(repos)
 	}
 
+	s.reportProgress(input, "Creating workspace directory...")
 	workspacePath, alreadyExists, err := s.createWorkspaceDir(input.Name)
 	if err != nil {
-		return nil, err
+		return CreateOutput{}, err
 	}
 	output.WorkspacePath = workspacePath
 	output.AlreadyExists = alreadyExists
 
-	for _, repo := range repos {
-		targetPath := filepath.Join(workspacePath, repo.Name)
+	var mu sync.Mutex
+	sem := semaphore.NewWeighted(3)
+	ctx := context.Background()
 
-		if useWorktrees {
-			result := s.createWorktree(repo, targetPath, input.Name)
-			if result.Error != nil {
-				output.FailedRepos = append(output.FailedRepos, result)
+	var wg sync.WaitGroup
+	for _, repo := range repos {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = sem.Acquire(ctx, 1)
+			defer sem.Release(1)
+
+			targetPath := filepath.Join(workspacePath, repo.Name)
+
+			if useWorktrees {
+				s.reportProgress(input, fmt.Sprintf("Creating worktree for %s...", repo.Name))
+				result := s.createWorktree(repo, targetPath, input.Name)
+				mu.Lock()
+				if result.Error != nil {
+					output.FailedRepos = append(output.FailedRepos, result)
+				} else {
+					output.CreatedRepos = append(output.CreatedRepos, result)
+				}
+				mu.Unlock()
 			} else {
-				output.CreatedRepos = append(output.CreatedRepos, result)
+				s.reportProgress(input, fmt.Sprintf("Cloning %s...", repo.Name))
+				result := s.cloneRepo(repo, workspacePath)
+				mu.Lock()
+				if result.Error != nil {
+					output.FailedRepos = append(output.FailedRepos, result)
+				} else {
+					output.CreatedRepos = append(output.CreatedRepos, result)
+				}
+				mu.Unlock()
 			}
-		} else {
-			result := s.cloneRepo(repo, workspacePath)
-			if result.Error != nil {
-				output.FailedRepos = append(output.FailedRepos, result)
-			} else {
-				output.CreatedRepos = append(output.CreatedRepos, result)
-			}
-		}
+		}()
 	}
+	wg.Wait()
 
 	if err := CreateWorkspaceInfo(workspacePath, input.Name, "", len(output.CreatedRepos), len(output.FailedRepos)); err != nil {
-		return nil, fmt.Errorf("failed to write workspace info: %w", err)
+		return CreateOutput{}, fmt.Errorf("failed to write workspace info: %w", err)
 	}
 
 	return output, nil
@@ -197,18 +242,18 @@ func (s *Service) cloneRepo(repo RepositorySpec, workspacePath string) RepoResul
 }
 
 // Delete removes a workspace and optionally its associated branches.
-func (s *Service) Delete(input DeleteInput) (*DeleteOutput, error) {
+func (s *Service) Delete(input DeleteInput) (DeleteOutput, error) {
 	if input.Name == "default" {
-		return nil, fmt.Errorf("the 'default' workspace is protected and cannot be deleted")
+		return DeleteOutput{}, fmt.Errorf("the 'default' workspace is protected and cannot be deleted")
 	}
 
 	workspacePath := filepath.Join(s.manager.WorkspacesDir, "workspace-"+input.Name)
 
 	if _, err := os.Stat(workspacePath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("workspace 'workspace-%s' does not exist", input.Name)
+		return DeleteOutput{}, fmt.Errorf("workspace 'workspace-%s' does not exist", input.Name)
 	}
 
-	output := &DeleteOutput{
+	output := DeleteOutput{
 		WorkspacePath:   workspacePath,
 		DeletedBranches: make([]BranchResult, 0),
 		SkippedBranches: make([]BranchResult, 0),
@@ -220,21 +265,23 @@ func (s *Service) Delete(input DeleteInput) (*DeleteOutput, error) {
 	}
 
 	if wsType == WorkspaceTypeWorktree {
-		s.cleanupWorktrees(workspacePath, input.DeleteBranches, output)
+		deleted, skipped := s.cleanupWorktrees(workspacePath, input.DeleteBranches)
+		output.DeletedBranches = deleted
+		output.SkippedBranches = skipped
 	}
 
 	if err := os.RemoveAll(workspacePath); err != nil {
-		return nil, fmt.Errorf("failed to delete workspace: %w", err)
+		return DeleteOutput{}, fmt.Errorf("failed to delete workspace: %w", err)
 	}
 
 	output.Deleted = true
 	return output, nil
 }
 
-func (s *Service) cleanupWorktrees(workspacePath string, deleteBranches bool, output *DeleteOutput) {
+func (s *Service) cleanupWorktrees(workspacePath string, deleteBranches bool) (deleted, skipped []BranchResult) {
 	entries, err := os.ReadDir(workspacePath)
 	if err != nil {
-		return
+		return nil, nil
 	}
 
 	for _, entry := range entries {
@@ -273,12 +320,14 @@ func (s *Service) cleanupWorktrees(workspacePath string, deleteBranches bool, ou
 
 			if err := git.DeleteBranch(mainRepoPath, branchName); err != nil {
 				result.Error = err
-				output.SkippedBranches = append(output.SkippedBranches, result)
+				skipped = append(skipped, result)
 			} else {
-				output.DeletedBranches = append(output.DeletedBranches, result)
+				deleted = append(deleted, result)
 			}
 		}
 	}
+
+	return deleted, skipped
 }
 
 // List returns all workspaces.

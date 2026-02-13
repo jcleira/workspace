@@ -90,6 +90,15 @@ func (m DashboardModel) tickCmd() tea.Cmd {
 	})
 }
 
+// StatusClearedMsg signals that status message should be cleared.
+type StatusClearedMsg struct{}
+
+func (m DashboardModel) clearStatusAfterDelay() tea.Cmd {
+	return tea.Tick(3*time.Second, func(t time.Time) tea.Msg {
+		return StatusClearedMsg{}
+	})
+}
+
 func (m DashboardModel) loadWorkspaces() tea.Cmd {
 	return func() tea.Msg {
 		workspaces, err := m.workspaceManager.GetWorkspaces()
@@ -219,7 +228,9 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keys.Refresh):
-			return m, m.refreshSelectedStatus()
+			m.refreshing = true
+			m.statusMessage = "Refreshing..."
+			return m, tea.Batch(m.refreshSelectedStatus(), m.clearStatusAfterDelay())
 
 		case key.Matches(msg, m.keys.Fetch):
 			return m.handleFetchAction()
@@ -285,6 +296,12 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.statusMessage = msg.Error.Error()
 		return m, nil
 
+	case StatusClearedMsg:
+		if m.statusMessage == "Refreshing..." {
+			m.statusMessage = ""
+		}
+		return m, nil
+
 	case DiffLoadedMsg:
 		m.diffView = m.diffView.SetLoading(false)
 		if msg.Error != nil {
@@ -333,9 +350,10 @@ func (m DashboardModel) updateLayout() DashboardModel {
 	rightWidth := m.width - leftWidth - 4
 
 	contentHeight := m.height - 6
+	innerHeight := contentHeight - 2
 
-	m.workspaceList = m.workspaceList.SetSize(leftWidth, contentHeight)
-	m.details = m.details.SetSize(rightWidth, contentHeight)
+	m.workspaceList = m.workspaceList.SetSize(leftWidth, innerHeight)
+	m.details = m.details.SetSize(rightWidth, innerHeight)
 	m.help = m.help.SetSize(m.width, m.height)
 	if m.showConfirm {
 		m.confirmModel = m.confirmModel.SetSize(m.width, m.height)
@@ -563,6 +581,7 @@ func (m DashboardModel) renderFooter() string {
 		helpKeyStyle.Render("↑/↓ j/k") + helpDescStyle.Render(" navigate"),
 		helpKeyStyle.Render("←/→ h/l") + helpDescStyle.Render(" panels"),
 		helpKeyStyle.Render("Enter") + helpDescStyle.Render(" select"),
+		helpKeyStyle.Render("R") + helpDescStyle.Render(" refresh"),
 		helpKeyStyle.Render("f") + helpDescStyle.Render(" fetch"),
 		helpKeyStyle.Render("p") + helpDescStyle.Render(" pull"),
 		helpKeyStyle.Render("d") + helpDescStyle.Render(" delete"),

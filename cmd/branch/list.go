@@ -12,9 +12,12 @@ import (
 )
 
 var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all branches and their associated workspaces",
-	Long:  `List all branches in main repositories, showing which workspaces they belong to and if they have unpushed commits.`,
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List all branches and their associated workspaces",
+	Long:    `List all branches in main repositories, showing which workspaces they belong to and if they have unpushed commits.`,
+	Example: `  workspace branch list
+  workspace b ls`,
 	Run: func(_ *cobra.Command, _ []string) {
 		listBranches()
 	},
@@ -29,7 +32,7 @@ func listBranches() {
 
 	output, err := svc.List()
 	if err != nil {
-		commands.PrintError(fmt.Sprintf("Failed to list branches: %v", err))
+		commands.PrintErrorf("Failed to list branches: %v", err)
 		return
 	}
 
@@ -41,7 +44,7 @@ func listBranches() {
 	displayBranchList(output)
 }
 
-func displayBranchList(output *branch.ListOutput) {
+func displayBranchList(output branch.ListOutput) {
 	for _, repo := range output.Repositories {
 		fmt.Printf("\n%s\n", commands.ColorInfo(fmt.Sprintf("=== Repository: %s ===", repo.RepoName)))
 

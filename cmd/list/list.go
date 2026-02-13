@@ -15,9 +15,12 @@ import (
 )
 
 var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all workspaces",
-	Long:  `Display all existing workspaces and their contents.`,
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List all workspaces",
+	Long:    `Display all existing workspaces and their contents.`,
+	Example: `  workspace list
+  workspace ls`,
 	Run: func(_ *cobra.Command, _ []string) {
 		ListWorkspaces()
 	},
@@ -32,7 +35,7 @@ func ListWorkspaces() {
 
 	workspaces, err := cmd.WorkspaceManager.GetWorkspaces()
 	if err != nil {
-		commands.PrintError(fmt.Sprintf("Failed to get workspaces: %v", err))
+		commands.PrintErrorf("Failed to get workspaces: %v", err)
 		return
 	}
 

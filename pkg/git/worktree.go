@@ -119,22 +119,28 @@ func ListWorktrees(mainRepoPath string) ([]WorktreeInfo, error) {
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	var worktrees []WorktreeInfo
 	var current WorktreeInfo
+	hasCurrent := false
 
 	for _, line := range lines {
 		switch {
 		case strings.HasPrefix(line, "worktree "):
-			if current.Path != "" {
+			if hasCurrent && current.Path != "" {
 				worktrees = append(worktrees, current)
 			}
 			current = WorktreeInfo{Path: strings.TrimPrefix(line, "worktree ")}
+			hasCurrent = true
 		case strings.HasPrefix(line, "branch "):
-			current.Branch = strings.TrimPrefix(line, "branch ")
+			if hasCurrent {
+				current.Branch = strings.TrimPrefix(line, "branch ")
+			}
 		case strings.HasPrefix(line, "HEAD "):
-			current.Commit = strings.TrimPrefix(line, "HEAD ")
+			if hasCurrent {
+				current.Commit = strings.TrimPrefix(line, "HEAD ")
+			}
 		}
 	}
 
-	if current.Path != "" {
+	if hasCurrent && current.Path != "" {
 		worktrees = append(worktrees, current)
 	}
 

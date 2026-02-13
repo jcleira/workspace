@@ -2,9 +2,13 @@ package workspace
 
 import "time"
 
+// ProgressCallback is called to report progress during operations.
+type ProgressCallback func(message string)
+
 // CreateInput contains all parameters for creating a workspace.
 type CreateInput struct {
-	Name string
+	Name       string
+	OnProgress ProgressCallback
 }
 
 // CreateOutput contains the result of workspace creation.

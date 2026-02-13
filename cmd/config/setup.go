@@ -35,7 +35,7 @@ func runInteractiveSetup() {
 		cfg.ClaudeDir,
 	)
 	if err != nil {
-		commands.PrintError(fmt.Sprintf("Setup wizard failed: %v", err))
+		commands.PrintErrorf("Setup wizard failed: %v", err)
 		os.Exit(1)
 	}
 
