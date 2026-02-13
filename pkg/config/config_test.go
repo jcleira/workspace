@@ -193,7 +193,9 @@ func TestConfigManager_IsInitialized(t *testing.T) {
 		{
 			name: "initialized when flag is set",
 			setupFunc: func(cm *ConfigManager, tmpDir string) {
-				_ = cm.SetInitialized(true)
+				if err := cm.SetInitialized(true); err != nil {
+					panic(err)
+				}
 			},
 			want: true,
 		},
@@ -201,7 +203,9 @@ func TestConfigManager_IsInitialized(t *testing.T) {
 			name: "initialized when repos dir has content",
 			setupFunc: func(cm *ConfigManager, tmpDir string) {
 				reposDir := cm.GetConfig().ReposDir
-				_ = os.MkdirAll(filepath.Join(reposDir, "some-repo"), 0o755)
+				if err := os.MkdirAll(filepath.Join(reposDir, "some-repo"), 0o755); err != nil {
+					panic(err)
+				}
 			},
 			want: true,
 		},

@@ -70,7 +70,9 @@ func (s *Service) SyncMainRepos(repos []RepositorySpec) []SyncResult {
 		})
 	}
 
-	_ = g.Wait()
+	if err := g.Wait(); err != nil {
+		return results
+	}
 	return results
 }
 
@@ -123,7 +125,9 @@ func (s *Service) Create(input CreateInput) (CreateOutput, error) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_ = sem.Acquire(ctx, 1)
+			if err := sem.Acquire(ctx, 1); err != nil {
+				return
+			}
 			defer sem.Release(1)
 
 			targetPath := filepath.Join(workspacePath, repo.Name)

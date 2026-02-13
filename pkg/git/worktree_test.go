@@ -22,11 +22,15 @@ func initGitRepo(t *testing.T, path string) {
 
 	cmd = exec.Command("git", "config", "user.email", "test@test.com")
 	cmd.Dir = path
-	_ = cmd.Run()
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to set git config email: %v", err)
+	}
 
 	cmd = exec.Command("git", "config", "user.name", "Test User")
 	cmd.Dir = path
-	_ = cmd.Run()
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to set git config name: %v", err)
+	}
 
 	testFile := filepath.Join(path, "README.md")
 	if err := os.WriteFile(testFile, []byte("# Test"), 0o644); err != nil {
@@ -110,7 +114,7 @@ func TestCreateWorktree(t *testing.T) {
 		t.Fatalf("CreateWorktree() error = %v", err)
 	}
 
-	if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
+	if _, statErr := os.Stat(worktreePath); os.IsNotExist(statErr) {
 		t.Error("worktree directory was not created")
 	}
 
@@ -206,8 +210,8 @@ func TestListWorktrees(t *testing.T) {
 	}
 
 	worktreePath := filepath.Join(tmpDir, "worktree")
-	if err := CreateWorktree(mainRepoPath, worktreePath, "test-branch"); err != nil {
-		t.Fatalf("CreateWorktree() error = %v", err)
+	if createErr := CreateWorktree(mainRepoPath, worktreePath, "test-branch"); createErr != nil {
+		t.Fatalf("CreateWorktree() error = %v", createErr)
 	}
 
 	worktrees, err = ListWorktrees(mainRepoPath)
@@ -247,7 +251,9 @@ func TestBranchExists(t *testing.T) {
 			setupFunc: func(t *testing.T, repoPath string) {
 				cmd := exec.Command("git", "branch", "feature-branch")
 				cmd.Dir = repoPath
-				_ = cmd.Run()
+				if err := cmd.Run(); err != nil {
+					t.Fatalf("failed to create branch: %v", err)
+				}
 			},
 			want: true,
 		},
@@ -299,8 +305,14 @@ func TestIsBranchCheckedOut(t *testing.T) {
 		t.Error("expected branch to be checked out")
 	}
 
-	realWorktreePath, _ := filepath.EvalSymlinks(worktreePath)
-	realLocation, _ := filepath.EvalSymlinks(location)
+	realWorktreePath, err := filepath.EvalSymlinks(worktreePath)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(worktreePath) error = %v", err)
+	}
+	realLocation, err := filepath.EvalSymlinks(location)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(location) error = %v", err)
+	}
 	if realLocation != realWorktreePath {
 		t.Errorf("location = %s, want %s", realLocation, realWorktreePath)
 	}
@@ -332,11 +344,15 @@ func TestGetAllBranches(t *testing.T) {
 
 	cmd := exec.Command("git", "branch", "branch1")
 	cmd.Dir = repoPath
-	_ = cmd.Run()
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to create branch1: %v", err)
+	}
 
 	cmd = exec.Command("git", "branch", "branch2")
 	cmd.Dir = repoPath
-	_ = cmd.Run()
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to create branch2: %v", err)
+	}
 
 	branches, err := GetAllBranches(repoPath)
 	if err != nil {

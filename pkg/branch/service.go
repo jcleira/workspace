@@ -103,7 +103,7 @@ func (s *Service) List() (ListOutput, error) {
 		g.Go(func() error {
 			branches, err := git.GetAllBranches(repoPath)
 			if err != nil {
-				return nil
+				return err
 			}
 
 			defaultBranch, err := git.GetDefaultBranch(repoPath)
@@ -170,7 +170,9 @@ func (s *Service) List() (ListOutput, error) {
 				})
 			}
 
-			_ = branchGroup.Wait()
+			if err := branchGroup.Wait(); err != nil {
+				return err
+			}
 
 			mu.Lock()
 			output.Repositories = append(output.Repositories, repoBranches)
@@ -183,7 +185,9 @@ func (s *Service) List() (ListOutput, error) {
 		})
 	}
 
-	_ = g.Wait()
+	if err := g.Wait(); err != nil {
+		return ListOutput{}, err
+	}
 	return output, nil
 }
 
@@ -260,7 +264,9 @@ func (s *Service) ExecuteCleanup(plan CleanupPlan, skipBranches []string) (Clean
 		})
 	}
 
-	_ = g.Wait()
+	if err := g.Wait(); err != nil {
+		return CleanupResult{}, err
+	}
 	return CleanupResult{
 		Deleted: deleted,
 		Skipped: skipped,
