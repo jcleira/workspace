@@ -2,270 +2,98 @@
 
 <img width="1797" height="1131" alt="workspace" src="https://github.com/user-attachments/assets/11b9a166-7aec-41b0-b23a-1ad4bbe911f5" />
 
-A command-line tool for managing isolated development workspaces with multiple git repositories. Designed for developers working on microservices, monorepos, or multiple related projects.
+Workspace CLI is a Go-based tool that keeps microservice and monorepo work tidy by carving out isolated workspaces with synchronized git worktrees, shared AI context, and a fast terminal UX.
 
 ![Go Version](https://img.shields.io/badge/Go-1.23%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-macOS%20|%20Linux%20|%20Windows-lightgrey)
 [![AUR version](https://img.shields.io/aur/version/workspace-cli-bin)](https://aur.archlinux.org/packages/workspace-cli-bin)
 
-## Features
+## Why Workspace CLI
 
-- **Isolated Workspaces**: Create separate workspace environments for different features or experiments
-- **Git Worktree Integration**: Feature workspaces use git worktrees for lightweight, isolated branch development
-- **Branch Management**: Track, cleanup, and manage branches across all repositories
-- **Shared Context**: All workspaces share `.claude` directory for consistent AI assistance
-- **Automatic Sync**: Fetches and pulls latest changes when creating workspaces
-- **Interactive UI**: Terminal interface powered by Bubble Tea
-- **Shell Integration**: Seamless navigation with the `w` command
-- **Protected Workspaces**: Default workspace is protected from accidental deletion
-- **Unpushed Commit Detection**: Warns before deleting branches with unpushed work
+- Keep parallel feature streams isolated while sharing a single repo checkout via git worktrees
+- Guarantee every workspace starts from a freshly synced main branch
+- Jump between workspaces (and shells) with the built-in `w` helper
+- Track orphaned or stale branches across all repos and clean them up safely
+- Share `.claude` data across every workspace for consistent AI context
+
+## Key Capabilities
+
+- **Workspace automation**: Create, list, switch, and delete feature workspaces in seconds
+- **Git awareness**: Auto-fetch, detect unpushed commits, and manage worktrees without manual scripting
+- **Branch hygiene**: Interactive cleanup plus pattern-based ignore rules for protected branches
+- **Terminal UX**: Bubble Tea dashboard for glanceable status plus rich CLI output helpers
+- **Shell integration**: `workspace config init` wires the `w` function and autocompletion into bash/zsh/fish
+
+## How It Works
+
+- `workspaces-dir`: root that holds each `workspace-<name>` directory
+- `repos-dir`: canonical clones that power git worktrees for every feature workspace
+- `claude-dir`: shared AI state, symlinked into every workspace as `.claude`
+- `workspace create <name>` syncs origin/main, creates worktrees, and links metadata so delete/cleanup know what to remove later
+- The protected `workspace-default` uses full clones (no worktrees) for long-lived work
 
 ## Installation
 
-### Homebrew (macOS/Linux)
+Choose the package manager that fits your platform:
 
-```bash
-brew install jcleira/tap/workspace
-```
+| Platform | Command |
+|----------|---------|
+| Homebrew (macOS/Linux) | `brew install jcleira/tap/workspace` |
+| Scoop (Windows) | `scoop bucket add jcleira https://github.com/jcleira/scoop-bucket && scoop install workspace` |
+| AUR (Arch) | `yay -S workspace-cli-bin` or `paru -S workspace-cli-bin` |
 
-### APT (Debian/Ubuntu)
-
-```bash
-curl -LO https://github.com/jcleira/workspace/releases/latest/download/workspace_$(curl -s https://api.github.com/repos/jcleira/workspace/releases/latest | grep tag_name | cut -d '"' -f 4 | tr -d 'v')_linux_amd64.deb
-sudo dpkg -i workspace_*.deb
-```
-
-### RPM (Fedora/RHEL)
-
-```bash
-curl -LO https://github.com/jcleira/workspace/releases/latest/download/workspace_$(curl -s https://api.github.com/repos/jcleira/workspace/releases/latest | grep tag_name | cut -d '"' -f 4 | tr -d 'v')_linux_amd64.rpm
-sudo dnf install ./workspace_*.rpm
-```
-
-### APK (Alpine)
-
-```bash
-curl -LO https://github.com/jcleira/workspace/releases/latest/download/workspace_$(curl -s https://api.github.com/repos/jcleira/workspace/releases/latest | grep tag_name | cut -d '"' -f 4 | tr -d 'v')_linux_amd64.apk
-sudo apk add --allow-untrusted workspace_*.apk
-```
-
-### Scoop (Windows)
-
-```powershell
-scoop bucket add jcleira https://github.com/jcleira/scoop-bucket
-scoop install workspace
-```
-
-### AUR (Arch Linux)
-
-```bash
-yay -S workspace-cli-bin
-# or
-paru -S workspace-cli-bin
-```
-
-### Go Install
-
-```bash
-go install github.com/jcleira/workspace@latest
-```
-
-### From Source
-
-```bash
-git clone https://github.com/jcleira/workspace.git
-cd workspace
-make install
-
-# Or install to user directory
-make install-local
-```
+Prebuilt archives are also published for APT, RPM, APK, and raw tarballs on the [releases page](https://github.com/jcleira/workspace/releases). Use `go install github.com/jcleira/workspace@latest` or `make install` after cloning if you prefer building from source.
 
 ## Quick Start
 
-### 1. Initial Setup
-
 ```bash
-# Configure workspace directories
+# 1. Configure directories (workspaces, repos, claude)
 workspace config setup
 
-# View current configuration
-workspace config show
-```
-
-### 2. Create Your First Workspace
-
-```bash
-# Create a new workspace (uses git worktrees)
+# 2. Create a feature workspace (git worktree)
 workspace create my-feature
 
-```
+# 3. Enable shell helpers
+workspace config init && source ~/.bashrc   # or ~/.zshrc / ~/.config/fish/config.fish
 
-### 3. Set Up Shell Integration
-
-```bash
-# Initialize shell integration for the 'w' command
-workspace config init
-
-# Add to your shell config and reload
-source ~/.bashrc  # or ~/.zshrc
-```
-
-### 4. Navigate Between Workspaces
-
-```bash
-# Interactive workspace selector
-workspace  # or just 'w' after shell integration
-
-# Direct navigation
-w my-feature
-
-# List all workspaces
+# 4. Jump between workspaces
+w             # interactive selector
+w my-feature  # jump directly
 workspace list
 ```
 
-## Commands
+## Command Reference
 
-### Core Commands
-
-| Command | Description |
-|---------|-------------|
-| `workspace` | Interactive workspace selector |
-| `workspace create <name>` | Create a new workspace |
-| `workspace list` | List all workspaces |
-| `workspace switch <name>` | Switch to a workspace |
-| `workspace delete <name>` | Delete workspace and its branches |
-
-### Branch Management Commands
+### Core
 
 | Command | Description |
 |---------|-------------|
-| `workspace branch list` | List all branches with workspace associations |
-| `workspace branch cleanup` | Delete orphaned branches (interactive) |
-| `workspace branch ignore add <pattern>` | Add pattern to ignore list |
-| `workspace branch ignore remove <pattern>` | Remove pattern from ignore list |
-| `workspace branch ignore list` | List ignored patterns |
-| `workspace branch ignore clear` | Clear all ignored patterns |
+| `workspace` | Bubble Tea dashboard / selector |
+| `workspace create <name>` | Create workspace and git worktrees |
+| `workspace list` | Show all workspaces |
+| `workspace switch <name>` | Change into workspace directory |
+| `workspace delete <name>` | Remove workspace and branches |
 
-### Configuration Commands
+### Branch Management
 
 | Command | Description |
 |---------|-------------|
-| `workspace config show` | Display current configuration |
-| `workspace config setup` | Interactive configuration setup |
-| `workspace config set <key> <value>` | Set configuration value |
-| `workspace config init` | Initialize shell integration |
-| `workspace config completion <shell>` | Generate shell completions |
+| `workspace branch list` | Show branches + owning workspaces, unpushed counts |
+| `workspace branch cleanup` | Interactive orphan cleanup |
+| `workspace branch ignore add/remove/list/clear` | Manage protected patterns |
 
-### Configuration Keys
+### Configuration
 
-- `workspaces-dir`: Directory where workspaces are stored
-- `repos-dir`: Directory where main git repositories are located
-- `claude-dir`: Shared Claude context directory
+| Command | Description |
+|---------|-------------|
+| `workspace config show` | Print resolved directories |
+| `workspace config setup` | Guided setup wizard |
+| `workspace config set <key> <value>` | Update a single key |
+| `workspace config init` | Install `w` helper + completions |
+| `workspace config completion <shell>` | Emit shell-specific completion script |
 
-## Git Integration
-
-### Automatic Remote Sync
-
-When creating a new workspace, the CLI automatically:
-1. Fetches latest changes from remote (`git fetch origin`)
-2. Pulls the default branch to ensure it's up-to-date
-3. Creates worktrees from the latest code
-
-### Git Worktree vs Normal Clones
-
-- **default workspace**: Uses normal git clones for persistent, long-term development
-- **feature workspaces**: Uses git worktrees for lightweight branch checkouts
-
-```bash
-# Creates normal clones
-workspace create default
-
-# Creates worktrees linked to repos-dir
-workspace create feature-auth
-```
-
-### Branch Lifecycle
-
-**On Creation:**
-- Branches are created from the latest main/master
-
-**On Deletion:**
-- Branches are deleted by default when deleting workspace
-- Branches with unpushed commits are automatically skipped (safe default)
-
-### Branch Ignore Patterns
-
-Protect branches from cleanup with patterns:
-
-```bash
-# Add patterns
-workspace branch ignore add "runtime-*"
-workspace branch ignore add "staging"
-
-# Pattern types supported
-workspace branch ignore add "local-*"     # Prefix
-workspace branch ignore add "*-backup"    # Suffix
-workspace branch ignore add "release/*"   # Glob
-```
-
-## Project Structure
-
-```
-workspace/
-├── main.go                 # Entry point
-├── cmd/                    # Cobra commands
-│   ├── root.go            # Root command & dashboard launcher
-│   ├── create/            # Workspace creation
-│   ├── delete/            # Workspace deletion
-│   ├── list/              # List workspaces
-│   ├── switch/            # Switch workspace
-│   ├── branch/            # Branch management (list, cleanup, ignore)
-│   └── config/            # Configuration (show, set, setup, init)
-├── pkg/                    # Public packages
-│   ├── workspace/         # Workspace service, manager, types
-│   ├── branch/            # Branch service and types
-│   ├── status/            # Repository status service
-│   ├── config/            # Configuration management
-│   ├── git/               # Git operations (clone, worktree, status)
-│   ├── ui/
-│   │   ├── commands/      # CLI output helpers
-│   │   └── dashboard/     # Interactive dashboard (Bubble Tea)
-│   └── shell/             # Shell integration
-├── Makefile               # Build automation
-└── README.md              # This file
-```
-
-## Development
-
-### Building from Source
-
-```bash
-git clone https://github.com/jcleira/workspace.git
-cd workspace
-go mod download
-make build
-make test
-```
-
-### Makefile Targets
-
-```bash
-make build         # Build the binary
-make build-all     # Build for all platforms
-make install       # Install to /usr/local/bin
-make install-local # Install to ~/go/bin
-make test          # Run tests
-make test-coverage # Generate coverage report
-make check         # Run fmt, vet, and lint
-make lint          # Run golangci-lint
-make clean         # Remove build artifacts
-```
-
-## Configuration
-
-Configuration is stored in `~/.config/workspace/config.json`:
+Configuration lives in `~/.config/workspace/config.json`:
 
 ```json
 {
@@ -275,111 +103,78 @@ Configuration is stored in `~/.config/workspace/config.json`:
 }
 ```
 
-### Manual Configuration
+## Workspace Lifecycle
 
-```bash
-workspace config set workspaces-dir ~/Projects/workspaces
-workspace config set repos-dir ~/Projects/repos
-workspace config set claude-dir ~/Projects/.claude
-```
+- **Create**: `workspace create feature-auth` fetches origin, updates main, makes worktrees, and records metadata
+- **Work**: `w feature-auth` drops you into the workspace where every repo is checked out on the new branch
+- **Manage branches**: `workspace branch list` surfaces stale/orphaned branches with unpushed counts and last commit info
+- **Cleanup**: `workspace delete feature-auth` removes the workspace and (optionally) the branches unless they have unpushed work
+- **Protect**: `workspace branch ignore add "runtime-*"` keeps long-lived branches off cleanup lists
 
-## Shell Integration
-
-The `w` function provides quick workspace navigation:
-
-```bash
-w              # Interactive workspace selection
-w project      # Navigate directly to workspace
-w pr[TAB]      # Autocomplete workspace names
-```
-
-### Shell Completion
-
-```bash
-# Bash
-workspace config completion bash > /etc/bash_completion.d/workspace
-
-# Zsh
-workspace config completion zsh > "${fpath[1]}/_workspace"
-
-# Fish
-workspace config completion fish > ~/.config/fish/completions/workspace.fish
-```
-
-## Usage Examples
-
-### Creating Workspaces
-
-```bash
-# Create a feature workspace
-workspace create frontend
-
-# Default workspace uses normal clones
-workspace create default
-```
-
-### Managing Branches
-
-```bash
-# List all branches and their workspaces
-workspace branch list
-
-# Clean up orphaned branches
-workspace branch cleanup
-
-# Protect branches from cleanup
-workspace branch ignore add "staging"
-workspace branch ignore add "release-*"
-```
-
-### Deleting Workspaces
-
-```bash
-# Delete workspace and its branches
-workspace delete old-feature
-```
-
-## Claude Integration
-
-Workspaces automatically link to a shared `.claude` directory:
+## Shared Claude Context
 
 ```
 workspace-myproject/
-├── .claude -> ~/Tactic/.claude  # Shared AI context
-├── frontend/                    # Your repositories
+├── .claude -> ~/Tactic/.claude
+├── frontend/
 ├── backend/
-└── .workspace-info              # Workspace metadata
+└── .workspace-info
 ```
+
+Every workspace symlinks `.claude`, so AI tools keep the same context even when jumping between branches.
+
+## Project Layout
+
+```
+workspace/
+├── main.go
+├── cmd/
+│   ├── root.go
+│   ├── create/
+│   ├── delete/
+│   ├── list/
+│   ├── switch/
+│   ├── branch/
+│   └── config/
+├── pkg/
+│   ├── workspace/
+│   ├── branch/
+│   ├── status/
+│   ├── config/
+│   ├── git/
+│   ├── ui/
+│   │   ├── commands/
+│   │   └── dashboard/
+│   └── shell/
+├── Makefile
+└── README.md
+```
+
+## Development
+
+```bash
+git clone https://github.com/jcleira/workspace.git
+cd workspace
+go mod download
+make build      # compile workspace CLI
+make test       # run unit tests with race detector
+make check      # fmt + vet + golangci-lint
+```
+
+Additional targets: `make build-all`, `make install`, `make install-local`, `make test-coverage`, `make clean`.
 
 ## Troubleshooting
 
-### Command not found
-
-```bash
-export PATH="/usr/local/bin:$PATH"
-# Or for user installation
-export PATH="$HOME/go/bin:$PATH"
-```
-
-### Shell integration not working
-
-1. Run `workspace config init`
-2. Add the function to your shell config
-3. Reload: `source ~/.bashrc` or `source ~/.zshrc`
-
-### Git authentication issues
-
-```bash
-ssh-add ~/.ssh/id_rsa
-ssh -T git@github.com
-```
+- **Command not found**: ensure `/usr/local/bin` or `$HOME/go/bin` is on `PATH`
+- **Shell integration missing**: rerun `workspace config init`, append output to shell rc, reload shell
+- **Git auth failures**: verify SSH keys via `ssh-add ~/.ssh/id_rsa` and `ssh -T git@github.com`
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License – see [LICENSE](LICENSE).
 
 ## Acknowledgments
 
-- [Cobra](https://github.com/spf13/cobra) - CLI framework
-- [Bubble Tea](https://github.com/charmbracelet/bubbletea) - TUI framework
-- [Lipgloss](https://github.com/charmbracelet/lipgloss) - Terminal styling
+- [Cobra](https://github.com/spf13/cobra)
+- [Bubble Tea](https://github.com/charmbracelet/bubbletea)
+- [Lipgloss](https://github.com/charmbracelet/lipgloss)
