@@ -35,15 +35,61 @@ Workspace CLI is a Go-based tool that keeps microservice and monorepo work tidy 
 
 ## Installation
 
-Choose the package manager that fits your platform:
+### Homebrew (macOS/Linux)
 
-| Platform | Command |
-|----------|---------|
-| Homebrew (macOS/Linux) | `brew install jcleira/tap/workspace` |
-| Scoop (Windows) | `scoop bucket add jcleira https://github.com/jcleira/scoop-bucket && scoop install workspace` |
-| AUR (Arch) | `yay -S workspace-cli-bin` or `paru -S workspace-cli-bin` |
+```bash
+brew install jcleira/tap/workspace
+```
 
-Prebuilt archives are also published for APT, RPM, APK, and raw tarballs on the [releases page](https://github.com/jcleira/workspace/releases). Use `go install github.com/jcleira/workspace@latest` or `make install` after cloning if you prefer building from source.
+### APT (Debian/Ubuntu)
+
+```bash
+curl -LO https://github.com/jcleira/workspace/releases/latest/download/workspace_$(curl -s https://api.github.com/repos/jcleira/workspace/releases/latest | grep tag_name | cut -d '"' -f 4 | tr -d 'v')_linux_amd64.deb
+sudo dpkg -i workspace_*.deb
+```
+
+### RPM (Fedora/RHEL)
+
+```bash
+curl -LO https://github.com/jcleira/workspace/releases/latest/download/workspace_$(curl -s https://api.github.com/repos/jcleira/workspace/releases/latest | grep tag_name | cut -d '"' -f 4 | tr -d 'v')_linux_amd64.rpm
+sudo dnf install ./workspace_*.rpm
+```
+
+### APK (Alpine)
+
+```bash
+curl -LO https://github.com/jcleira/workspace/releases/latest/download/workspace_$(curl -s https://api.github.com/repos/jcleira/workspace/releases/latest | grep tag_name | cut -d '"' -f 4 | tr -d 'v')_linux_amd64.apk
+sudo apk add --allow-untrusted workspace_*.apk
+```
+
+### Scoop (Windows)
+
+```powershell
+scoop bucket add jcleira https://github.com/jcleira/scoop-bucket
+scoop install workspace
+```
+
+### AUR (Arch Linux)
+
+```bash
+# or
+paru -S workspace-cli-bin
+```
+
+### Go Install
+
+```bash
+```
+
+### From Source
+
+```bash
+cd workspace
+make install
+
+# Or install to user directory
+make install-local
+```
 
 ## Quick Start
 
