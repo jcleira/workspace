@@ -72,6 +72,7 @@ scoop install workspace
 ### AUR (Arch Linux)
 
 ```bash
+yay -S workspace-cli-bin
 # or
 paru -S workspace-cli-bin
 ```
@@ -79,11 +80,13 @@ paru -S workspace-cli-bin
 ### Go Install
 
 ```bash
+go install github.com/jcleira/workspace@latest
 ```
 
 ### From Source
 
 ```bash
+git clone https://github.com/jcleira/workspace.git
 cd workspace
 make install
 
