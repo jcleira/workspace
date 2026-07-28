@@ -38,6 +38,12 @@ func DiscoverMainRepos(reposDir string) ([]RepositorySpec, error) {
 		cmd := exec.Command("git", "-C", repoPath, "remote", "get-url", "origin")
 		output, err := cmd.Output()
 		if err != nil {
+			// The directory is a git repository but its origin can't be
+			// resolved — most often a repo that was created locally and
+			// never pushed. Skipping it silently makes it simply absent
+			// from the workspace with nothing to debug, so say so.
+			fmt.Fprintf(os.Stderr, "workspace: skipping %q: no origin remote (%v)\n", entry.Name(), err)
+
 			continue
 		}
 
