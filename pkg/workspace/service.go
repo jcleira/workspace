@@ -176,13 +176,6 @@ func (s *Service) createWorkspaceDir(name string) (workspacePath string, already
 		}
 	}
 
-	claudeSymlink := filepath.Join(workspacePath, ".claude")
-	if _, err := os.Lstat(claudeSymlink); os.IsNotExist(err) {
-		if err := os.Symlink(s.manager.ClaudeDir, claudeSymlink); err != nil {
-			return "", false, fmt.Errorf("failed to create claude symlink: %w", err)
-		}
-	}
-
 	return workspacePath, alreadyExists, nil
 }
 

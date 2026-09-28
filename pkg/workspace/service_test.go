@@ -9,7 +9,7 @@ import (
 func TestNewService(t *testing.T) {
 	t.Parallel()
 
-	manager := NewManager("/tmp/workspaces", "/tmp/repos", "/tmp/claude")
+	manager := NewManager("/tmp/workspaces", "/tmp/repos")
 	svc := NewService(manager)
 
 	if svc == nil {
@@ -56,13 +56,12 @@ func TestService_Create(t *testing.T) {
 			tmpDir := t.TempDir()
 			workspacesDir := filepath.Join(tmpDir, "workspaces")
 			reposDir := filepath.Join(tmpDir, "repos")
-			claudeDir := filepath.Join(tmpDir, ".claude")
 
 			if tt.setupFunc != nil {
 				tt.setupFunc(t, workspacesDir, reposDir)
 			}
 
-			manager := NewManager(workspacesDir, reposDir, claudeDir)
+			manager := NewManager(workspacesDir, reposDir)
 			svc := NewService(manager)
 
 			output, err := svc.Create(tt.input)
@@ -145,7 +144,6 @@ func TestService_Delete(t *testing.T) {
 			tmpDir := t.TempDir()
 			workspacesDir := filepath.Join(tmpDir, "workspaces")
 			reposDir := filepath.Join(tmpDir, "repos")
-			claudeDir := filepath.Join(tmpDir, ".claude")
 
 			if err := os.MkdirAll(workspacesDir, 0o755); err != nil {
 				t.Fatal(err)
@@ -155,7 +153,7 @@ func TestService_Delete(t *testing.T) {
 				tt.setupFunc(t, workspacesDir)
 			}
 
-			manager := NewManager(workspacesDir, reposDir, claudeDir)
+			manager := NewManager(workspacesDir, reposDir)
 			svc := NewService(manager)
 
 			output, err := svc.Delete(tt.input)
@@ -220,7 +218,6 @@ func TestService_List(t *testing.T) {
 			tmpDir := t.TempDir()
 			workspacesDir := filepath.Join(tmpDir, "workspaces")
 			reposDir := filepath.Join(tmpDir, "repos")
-			claudeDir := filepath.Join(tmpDir, ".claude")
 
 			if err := os.MkdirAll(workspacesDir, 0o755); err != nil {
 				t.Fatal(err)
@@ -230,7 +227,7 @@ func TestService_List(t *testing.T) {
 				tt.setupFunc(t, workspacesDir)
 			}
 
-			manager := NewManager(workspacesDir, reposDir, claudeDir)
+			manager := NewManager(workspacesDir, reposDir)
 			svc := NewService(manager)
 
 			infos, err := svc.List()
@@ -279,7 +276,6 @@ func TestService_GetPath(t *testing.T) {
 			tmpDir := t.TempDir()
 			workspacesDir := filepath.Join(tmpDir, "workspaces")
 			reposDir := filepath.Join(tmpDir, "repos")
-			claudeDir := filepath.Join(tmpDir, ".claude")
 
 			if err := os.MkdirAll(workspacesDir, 0o755); err != nil {
 				t.Fatal(err)
@@ -289,7 +285,7 @@ func TestService_GetPath(t *testing.T) {
 				tt.setupFunc(t, workspacesDir)
 			}
 
-			manager := NewManager(workspacesDir, reposDir, claudeDir)
+			manager := NewManager(workspacesDir, reposDir)
 			svc := NewService(manager)
 
 			path, err := svc.GetPath(tt.wsName)
@@ -300,6 +296,70 @@ func TestService_GetPath(t *testing.T) {
 
 			if !tt.wantErr && path == "" {
 				t.Error("GetPath() returned empty path")
+			}
+		})
+	}
+}
+
+func TestService_CreateWorkspaceDir(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name              string
+		setupFunc         func(t *testing.T, workspacesDir string)
+		wantAlreadyExists bool
+	}{
+		{
+			name:              "creates an empty directory without a .claude link",
+			wantAlreadyExists: false,
+		},
+		{
+			name: "reports an existing directory and adds nothing to it",
+			setupFunc: func(t *testing.T, workspacesDir string) {
+				if err := os.MkdirAll(filepath.Join(workspacesDir, "workspace-fresh"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantAlreadyExists: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tmpDir := t.TempDir()
+			workspacesDir := filepath.Join(tmpDir, "workspaces")
+			reposDir := filepath.Join(tmpDir, "repos")
+
+			if tt.setupFunc != nil {
+				tt.setupFunc(t, workspacesDir)
+			}
+
+			svc := NewService(NewManager(workspacesDir, reposDir))
+
+			workspacePath, alreadyExists, err := svc.createWorkspaceDir("fresh")
+			if err != nil {
+				t.Fatalf("createWorkspaceDir() error = %v", err)
+			}
+			if alreadyExists != tt.wantAlreadyExists {
+				t.Errorf("alreadyExists = %v, want %v", alreadyExists, tt.wantAlreadyExists)
+			}
+			if want := filepath.Join(workspacesDir, "workspace-fresh"); workspacePath != want {
+				t.Errorf("workspacePath = %s, want %s", workspacePath, want)
+			}
+
+			entries, err := os.ReadDir(workspacePath)
+			if err != nil {
+				t.Fatalf("ReadDir() error = %v", err)
+			}
+			if len(entries) != 0 {
+				t.Errorf("expected an empty workspace directory, found %d entries", len(entries))
+			}
+
+			_, err = os.Lstat(filepath.Join(workspacePath, ".claude"))
+			if !os.IsNotExist(err) {
+				t.Errorf("expected no .claude entry in the workspace, Lstat error = %v", err)
 			}
 		})
 	}

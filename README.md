@@ -14,7 +14,6 @@ A command-line tool for managing isolated development workspaces with multiple g
 - **Isolated Workspaces**: Create separate workspace environments for different features or experiments
 - **Git Worktree Integration**: Feature workspaces use git worktrees for lightweight, isolated branch development
 - **Branch Management**: Track, cleanup, and manage branches across all repositories
-- **Shared Context**: All workspaces share `.claude` directory for consistent AI assistance
 - **Automatic Sync**: Fetches and pulls latest changes when creating workspaces
 - **Interactive UI**: Terminal interface powered by Bubble Tea
 - **Shell Integration**: Seamless navigation with the `w` command
@@ -162,7 +161,6 @@ workspace list
 
 - `workspaces-dir`: Directory where workspaces are stored
 - `repos-dir`: Directory where main git repositories are located
-- `claude-dir`: Shared Claude context directory
 
 ## Git Integration
 
@@ -270,8 +268,7 @@ Configuration is stored in `~/.config/workspace/config.json`:
 ```json
 {
   "workspaces_dir": "/Users/you/workspaces",
-  "repos_dir": "/Users/you/repos",
-  "claude_dir": "/Users/you/.claude"
+  "repos_dir": "/Users/you/repos"
 }
 ```
 
@@ -280,7 +277,6 @@ Configuration is stored in `~/.config/workspace/config.json`:
 ```bash
 workspace config set workspaces-dir ~/Projects/workspaces
 workspace config set repos-dir ~/Projects/repos
-workspace config set claude-dir ~/Projects/.claude
 ```
 
 ## Shell Integration
@@ -337,18 +333,6 @@ workspace branch ignore add "release-*"
 ```bash
 # Delete workspace and its branches
 workspace delete old-feature
-```
-
-## Claude Integration
-
-Workspaces automatically link to a shared `.claude` directory:
-
-```
-workspace-myproject/
-├── .claude -> ~/Tactic/.claude  # Shared AI context
-├── frontend/                    # Your repositories
-├── backend/
-└── .workspace-info              # Workspace metadata
 ```
 
 ## Troubleshooting

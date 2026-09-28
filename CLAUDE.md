@@ -254,9 +254,7 @@ workspace branch ignore clear
 - **Default directories**:
   - Workspaces: `~/Tactic/workspaces/`
   - Main repositories: `~/Tactic/repos/` (for worktree-based workspaces)
-  - Shared Claude: `~/Tactic/.claude/`
 - **File operations**: Always use absolute paths internally
-- **Symlinks**: Each workspace has `.claude -> ~/Tactic/.claude` symlink
 - **Branch deletion**: Branches are always deleted when deleting workspaces
 
 ## Important Implementation Details

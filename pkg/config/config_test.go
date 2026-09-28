@@ -41,9 +41,6 @@ func TestConfigManager_GetConfig(t *testing.T) {
 	if cfg.ReposDir == "" {
 		t.Error("expected non-empty ReposDir")
 	}
-	if cfg.ClaudeDir == "" {
-		t.Error("expected non-empty ClaudeDir")
-	}
 }
 
 func TestConfigManager_SetWorkspacesDir(t *testing.T) {
@@ -245,9 +242,8 @@ func TestConfigManager_UpdateConfig(t *testing.T) {
 
 	newWorkspaces := filepath.Join(tmpDir, "ws")
 	newRepos := filepath.Join(tmpDir, "repos")
-	newClaude := filepath.Join(tmpDir, "claude")
 
-	if err := cm.UpdateConfig(newWorkspaces, newRepos, newClaude); err != nil {
+	if err := cm.UpdateConfig(newWorkspaces, newRepos); err != nil {
 		t.Fatalf("UpdateConfig() error = %v", err)
 	}
 
@@ -257,8 +253,5 @@ func TestConfigManager_UpdateConfig(t *testing.T) {
 	}
 	if cfg.ReposDir != newRepos {
 		t.Errorf("ReposDir = %s, want %s", cfg.ReposDir, newRepos)
-	}
-	if cfg.ClaudeDir != newClaude {
-		t.Errorf("ClaudeDir = %s, want %s", cfg.ClaudeDir, newClaude)
 	}
 }

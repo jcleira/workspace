@@ -35,11 +35,9 @@ func showConfig() {
 
 	workspacesStatus := checkDirStatus(config.WorkspacesDir, "workspaces")
 	reposStatus := checkDirStatus(config.ReposDir, "repos")
-	claudeStatus := checkDirStatus(config.ClaudeDir, "")
 
 	fmt.Printf("Workspaces directory: %s %s\n", commands.SuccessStyle.Render(config.WorkspacesDir), workspacesStatus)
 	fmt.Printf("Repos directory:      %s %s\n", commands.SuccessStyle.Render(config.ReposDir), reposStatus)
-	fmt.Printf("Claude directory:     %s %s\n", commands.SuccessStyle.Render(config.ClaudeDir), claudeStatus)
 	fmt.Println()
 }
 

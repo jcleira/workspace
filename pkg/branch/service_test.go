@@ -11,7 +11,7 @@ import (
 func TestNewService(t *testing.T) {
 	t.Parallel()
 
-	wm := workspace.NewManager("/tmp/workspaces", "/tmp/repos", "/tmp/claude")
+	wm := workspace.NewManager("/tmp/workspaces", "/tmp/repos")
 	patterns := []string{"main", "master"}
 
 	svc := NewService(wm, patterns)
@@ -51,7 +51,6 @@ func TestService_BuildWorkspaceMapping(t *testing.T) {
 			tmpDir := t.TempDir()
 			workspacesDir := filepath.Join(tmpDir, "workspaces")
 			reposDir := filepath.Join(tmpDir, "repos")
-			claudeDir := filepath.Join(tmpDir, ".claude")
 
 			if err := os.MkdirAll(workspacesDir, 0o755); err != nil {
 				t.Fatal(err)
@@ -61,7 +60,7 @@ func TestService_BuildWorkspaceMapping(t *testing.T) {
 				tt.setupFunc(t, workspacesDir)
 			}
 
-			wm := workspace.NewManager(workspacesDir, reposDir, claudeDir)
+			wm := workspace.NewManager(workspacesDir, reposDir)
 			svc := NewService(wm, nil)
 
 			mapping, err := svc.BuildWorkspaceMapping()
@@ -108,7 +107,6 @@ func TestService_List(t *testing.T) {
 			tmpDir := t.TempDir()
 			workspacesDir := filepath.Join(tmpDir, "workspaces")
 			reposDir := filepath.Join(tmpDir, "repos")
-			claudeDir := filepath.Join(tmpDir, ".claude")
 
 			if err := os.MkdirAll(workspacesDir, 0o755); err != nil {
 				t.Fatal(err)
@@ -118,7 +116,7 @@ func TestService_List(t *testing.T) {
 				tt.setupFunc(t, reposDir)
 			}
 
-			wm := workspace.NewManager(workspacesDir, reposDir, claudeDir)
+			wm := workspace.NewManager(workspacesDir, reposDir)
 			svc := NewService(wm, nil)
 
 			output, err := svc.List()
@@ -138,7 +136,6 @@ func TestService_PlanCleanup(t *testing.T) {
 	tmpDir := t.TempDir()
 	workspacesDir := filepath.Join(tmpDir, "workspaces")
 	reposDir := filepath.Join(tmpDir, "repos")
-	claudeDir := filepath.Join(tmpDir, ".claude")
 
 	if err := os.MkdirAll(workspacesDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -147,7 +144,7 @@ func TestService_PlanCleanup(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	wm := workspace.NewManager(workspacesDir, reposDir, claudeDir)
+	wm := workspace.NewManager(workspacesDir, reposDir)
 	svc := NewService(wm, nil)
 
 	plan, err := svc.PlanCleanup()
@@ -199,9 +196,8 @@ func TestService_ExecuteCleanup(t *testing.T) {
 			tmpDir := t.TempDir()
 			workspacesDir := filepath.Join(tmpDir, "workspaces")
 			reposDir := filepath.Join(tmpDir, "repos")
-			claudeDir := filepath.Join(tmpDir, ".claude")
 
-			wm := workspace.NewManager(workspacesDir, reposDir, claudeDir)
+			wm := workspace.NewManager(workspacesDir, reposDir)
 			svc := NewService(wm, nil)
 
 			result, err := svc.ExecuteCleanup(tt.plan, tt.skipBranches)
@@ -226,9 +222,8 @@ func TestService_CheckUnpushed(t *testing.T) {
 	tmpDir := t.TempDir()
 	workspacesDir := filepath.Join(tmpDir, "workspaces")
 	reposDir := filepath.Join(tmpDir, "repos")
-	claudeDir := filepath.Join(tmpDir, ".claude")
 
-	wm := workspace.NewManager(workspacesDir, reposDir, claudeDir)
+	wm := workspace.NewManager(workspacesDir, reposDir)
 	svc := NewService(wm, nil)
 
 	hasUnpushed, count, err := svc.CheckUnpushed("/nonexistent/repo", "main")

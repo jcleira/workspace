@@ -61,7 +61,7 @@ func InitializeConfig() error {
 	}
 
 	cfg := ConfigManager.GetConfig()
-	WorkspaceManager = workspace.NewManager(cfg.WorkspacesDir, cfg.ReposDir, cfg.ClaudeDir)
+	WorkspaceManager = workspace.NewManager(cfg.WorkspacesDir, cfg.ReposDir)
 
 	return nil
 }
@@ -97,7 +97,6 @@ func runInteractiveWorkspaceSelector() {
 				ConfigManager,
 				cfg.ReposDir,
 				cfg.WorkspacesDir,
-				cfg.ClaudeDir,
 			)
 			if err != nil {
 				commands.PrintErrorf("Setup wizard failed: %v", err)
@@ -105,7 +104,7 @@ func runInteractiveWorkspaceSelector() {
 			}
 			if setupResult.Completed {
 				cfg = ConfigManager.GetConfig()
-				WorkspaceManager = workspace.NewManager(cfg.WorkspacesDir, cfg.ReposDir, cfg.ClaudeDir)
+				WorkspaceManager = workspace.NewManager(cfg.WorkspacesDir, cfg.ReposDir)
 			}
 			continue
 		}
