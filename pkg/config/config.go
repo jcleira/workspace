@@ -12,7 +12,6 @@ import (
 type Config struct {
 	WorkspacesDir   string   `json:"workspaces_dir"`
 	ReposDir        string   `json:"repos_dir"`
-	ClaudeDir       string   `json:"claude_dir"`
 	IgnoredBranches []string `json:"ignored_branches,omitempty"`
 	Initialized     bool     `json:"initialized"`
 }
@@ -55,7 +54,6 @@ func (cm *ConfigManager) loadConfig() error {
 		cm.config = &Config{
 			WorkspacesDir: filepath.Join(homeDir, "workspaces"),
 			ReposDir:      filepath.Join(homeDir, "repos"),
-			ClaudeDir:     filepath.Join(homeDir, ".claude"),
 		}
 		return cm.saveConfig()
 	}
@@ -78,9 +76,6 @@ func (cm *ConfigManager) loadConfig() error {
 	}
 	if cm.config.ReposDir == "" {
 		cm.config.ReposDir = filepath.Join(homeDir, "repos")
-	}
-	if cm.config.ClaudeDir == "" {
-		cm.config.ClaudeDir = filepath.Join(homeDir, ".claude")
 	}
 
 	return nil
@@ -127,17 +122,6 @@ func (cm *ConfigManager) SetReposDir(dir string) error {
 	}
 
 	cm.config.ReposDir = absDir
-	return cm.saveConfig()
-}
-
-// SetClaudeDir sets the claude directory
-func (cm *ConfigManager) SetClaudeDir(dir string) error {
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path: %w", err)
-	}
-
-	cm.config.ClaudeDir = absDir
 	return cm.saveConfig()
 }
 
@@ -227,7 +211,7 @@ func (cm *ConfigManager) SetInitialized(initialized bool) error {
 }
 
 // UpdateConfig updates multiple config values and saves
-func (cm *ConfigManager) UpdateConfig(workspacesDir, reposDir, claudeDir string) error {
+func (cm *ConfigManager) UpdateConfig(workspacesDir, reposDir string) error {
 	if workspacesDir != "" {
 		absDir, err := filepath.Abs(workspacesDir)
 		if err != nil {
@@ -241,13 +225,6 @@ func (cm *ConfigManager) UpdateConfig(workspacesDir, reposDir, claudeDir string)
 			return fmt.Errorf("failed to get absolute path for repos dir: %w", err)
 		}
 		cm.config.ReposDir = absDir
-	}
-	if claudeDir != "" {
-		absDir, err := filepath.Abs(claudeDir)
-		if err != nil {
-			return fmt.Errorf("failed to get absolute path for claude dir: %w", err)
-		}
-		cm.config.ClaudeDir = absDir
 	}
 	return cm.saveConfig()
 }

@@ -20,7 +20,6 @@ const (
 	stepWelcome step = iota
 	stepReposDir
 	stepWorkspacesDir
-	stepClaudeDir
 	stepConfirm
 	stepComplete
 )
@@ -35,7 +34,6 @@ type SetupModel struct {
 	step            step
 	reposInput      DirectoryInputModel
 	workspacesInput DirectoryInputModel
-	claudeInput     DirectoryInputModel
 	width           int
 	height          int
 	err             error
@@ -50,17 +48,15 @@ func NewSetupModel(cm *config.ConfigManager) SetupModel {
 		step:            stepWelcome,
 		reposInput:      NewDirectoryInputModel("~/repos", homeDir+"/repos"),
 		workspacesInput: NewDirectoryInputModel("~/workspaces", homeDir+"/workspaces"),
-		claudeInput:     NewDirectoryInputModel("~/.claude", homeDir+"/.claude"),
 	}
 }
 
-func NewSetupModelWithDefaults(cm *config.ConfigManager, reposDir, workspacesDir, claudeDir string) SetupModel {
+func NewSetupModelWithDefaults(cm *config.ConfigManager, reposDir, workspacesDir string) SetupModel {
 	return SetupModel{
 		configManager:   cm,
 		step:            stepWelcome,
 		reposInput:      NewDirectoryInputModel("~/repos", contractPath(reposDir)),
 		workspacesInput: NewDirectoryInputModel("~/workspaces", contractPath(workspacesDir)),
-		claudeInput:     NewDirectoryInputModel("~/.claude", contractPath(claudeDir)),
 	}
 }
 
@@ -101,16 +97,8 @@ func (m SetupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, cmd
 		case stepWorkspacesDir:
-			input, newStep, cmd := handleDirectoryKey(msg, m.workspacesInput, m.step, stepReposDir, stepClaudeDir)
+			input, newStep, cmd := handleDirectoryKey(msg, m.workspacesInput, m.step, stepReposDir, stepConfirm)
 			m.workspacesInput = input
-			m.step = newStep
-			if newStep == stepClaudeDir {
-				return m, m.claudeInput.FocusCmd()
-			}
-			return m, cmd
-		case stepClaudeDir:
-			input, newStep, cmd := handleDirectoryKey(msg, m.claudeInput, m.step, stepWorkspacesDir, stepConfirm)
-			m.claudeInput = input
 			m.step = newStep
 			return m, cmd
 		case stepConfirm:
@@ -134,8 +122,6 @@ func (m SetupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.reposInput, cmd = m.reposInput.Update(msg)
 		case stepWorkspacesDir:
 			m.workspacesInput, cmd = m.workspacesInput.Update(msg)
-		case stepClaudeDir:
-			m.claudeInput, cmd = m.claudeInput.Update(msg)
 		}
 		return m, cmd
 	}
@@ -190,7 +176,7 @@ func (m SetupModel) handleConfirmKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, keys.Enter):
 		return m, m.saveConfig()
 	case key.Matches(msg, keys.Back):
-		m.step = stepClaudeDir
+		m.step = stepWorkspacesDir
 		return m, nil
 	}
 	return m, nil
@@ -207,7 +193,6 @@ func (m SetupModel) saveConfig() tea.Cmd {
 	return func() tea.Msg {
 		reposDir := m.reposInput.Value()
 		workspacesDir := m.workspacesInput.Value()
-		claudeDir := m.claudeInput.Value()
 
 		if err := os.MkdirAll(reposDir, 0o755); err != nil {
 			return configSavedMsg{err: fmt.Errorf("failed to create repos directory: %w", err)}
@@ -215,11 +200,8 @@ func (m SetupModel) saveConfig() tea.Cmd {
 		if err := os.MkdirAll(workspacesDir, 0o755); err != nil {
 			return configSavedMsg{err: fmt.Errorf("failed to create workspaces directory: %w", err)}
 		}
-		if err := os.MkdirAll(claudeDir, 0o755); err != nil {
-			return configSavedMsg{err: fmt.Errorf("failed to create claude directory: %w", err)}
-		}
 
-		if err := m.configManager.UpdateConfig(workspacesDir, reposDir, claudeDir); err != nil {
+		if err := m.configManager.UpdateConfig(workspacesDir, reposDir); err != nil {
 			return configSavedMsg{err: fmt.Errorf("failed to save config: %w", err)}
 		}
 
@@ -245,8 +227,6 @@ func (m SetupModel) View() string {
 		content = m.viewReposDir()
 	case stepWorkspacesDir:
 		content = m.viewWorkspacesDir()
-	case stepClaudeDir:
-		content = m.viewClaudeDir()
 	case stepConfirm:
 		content = m.viewConfirm()
 	case stepComplete:
@@ -269,8 +249,6 @@ func (m SetupModel) viewWelcome() string {
 	b.WriteString("  Where your main git repos are cloned\n\n")
 	b.WriteString("• Workspaces directory\n")
 	b.WriteString("  Where isolated worktree copies are created\n\n")
-	b.WriteString("• Claude directory\n")
-	b.WriteString("  Shared config synced across workspaces\n\n")
 	b.WriteString(helpKeyStyle.Render("Enter"))
 	b.WriteString(helpStyle.Render(": Start"))
 
@@ -280,7 +258,7 @@ func (m SetupModel) viewWelcome() string {
 func (m SetupModel) viewReposDir() string {
 	var b strings.Builder
 
-	b.WriteString(stepIndicatorStyle.Render("Step 1 of 3"))
+	b.WriteString(stepIndicatorStyle.Render("Step 1 of 2"))
 	b.WriteString("\n")
 	b.WriteString(titleStyle.Render("Repository Directory"))
 	b.WriteString("\n\n")
@@ -298,7 +276,7 @@ func (m SetupModel) viewReposDir() string {
 func (m SetupModel) viewWorkspacesDir() string {
 	var b strings.Builder
 
-	b.WriteString(stepIndicatorStyle.Render("Step 2 of 3"))
+	b.WriteString(stepIndicatorStyle.Render("Step 2 of 2"))
 	b.WriteString("\n")
 	b.WriteString(titleStyle.Render("Workspaces Directory"))
 	b.WriteString("\n\n")
@@ -306,24 +284,6 @@ func (m SetupModel) viewWorkspacesDir() string {
 	b.WriteString("\n\n")
 	b.WriteString(m.workspacesInput.View())
 	if m.workspacesInput.Mode() == textMode {
-		b.WriteString("\n\n")
-		b.WriteString(m.directoryInputHelp())
-	}
-
-	return b.String()
-}
-
-func (m SetupModel) viewClaudeDir() string {
-	var b strings.Builder
-
-	b.WriteString(stepIndicatorStyle.Render("Step 3 of 3"))
-	b.WriteString("\n")
-	b.WriteString(titleStyle.Render("Claude Directory"))
-	b.WriteString("\n\n")
-	b.WriteString(subtitleStyle.Render("Where is your shared .claude directory?"))
-	b.WriteString("\n\n")
-	b.WriteString(m.claudeInput.View())
-	if m.claudeInput.Mode() == textMode {
 		b.WriteString("\n\n")
 		b.WriteString(m.directoryInputHelp())
 	}
@@ -351,9 +311,6 @@ func (m SetupModel) viewConfirm() string {
 	b.WriteString("\n")
 	b.WriteString(summaryLabelStyle.Render("Workspaces:   "))
 	b.WriteString(summaryValueStyle.Render(m.workspacesInput.Value()))
-	b.WriteString("\n")
-	b.WriteString(summaryLabelStyle.Render("Claude:       "))
-	b.WriteString(summaryValueStyle.Render(m.claudeInput.Value()))
 	b.WriteString("\n\n")
 
 	if m.err != nil {
@@ -408,8 +365,8 @@ func RunSetupWizard(cm *config.ConfigManager) (SetupResult, error) {
 	}, nil
 }
 
-func RunSetupWizardWithDefaults(cm *config.ConfigManager, reposDir, workspacesDir, claudeDir string) (SetupResult, error) {
-	model := NewSetupModelWithDefaults(cm, reposDir, workspacesDir, claudeDir)
+func RunSetupWizardWithDefaults(cm *config.ConfigManager, reposDir, workspacesDir string) (SetupResult, error) {
+	model := NewSetupModelWithDefaults(cm, reposDir, workspacesDir)
 	p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithInputTTY())
 
 	finalModel, err := p.Run()

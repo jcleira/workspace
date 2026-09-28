@@ -32,7 +32,6 @@ func runInteractiveSetup() {
 		cmd.ConfigManager,
 		cfg.ReposDir,
 		cfg.WorkspacesDir,
-		cfg.ClaudeDir,
 	)
 	if err != nil {
 		commands.PrintErrorf("Setup wizard failed: %v", err)
@@ -44,7 +43,7 @@ func runInteractiveSetup() {
 	}
 
 	cfg = cmd.ConfigManager.GetConfig()
-	cmd.WorkspaceManager = workspace.NewManager(cfg.WorkspacesDir, cfg.ReposDir, cfg.ClaudeDir)
+	cmd.WorkspaceManager = workspace.NewManager(cfg.WorkspacesDir, cfg.ReposDir)
 
 	fmt.Println()
 	showConfig()

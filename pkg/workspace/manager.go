@@ -19,15 +19,13 @@ const (
 type Manager struct {
 	WorkspacesDir string
 	ReposDir      string
-	ClaudeDir     string
 }
 
 // NewManager creates a new workspace manager with the specified directories.
-func NewManager(workspacesDir, reposDir, claudeDir string) *Manager {
+func NewManager(workspacesDir, reposDir string) *Manager {
 	return &Manager{
 		WorkspacesDir: workspacesDir,
 		ReposDir:      reposDir,
-		ClaudeDir:     claudeDir,
 	}
 }
 
